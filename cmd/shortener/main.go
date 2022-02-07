@@ -3,12 +3,18 @@ package main
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/go-chi/chi"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 var DB = make(map[string]string)
+
+func Normalize(hash string) string {
+	return strings.ReplaceAll(hash, "/", "X")
+}
 
 func HashURL(url []byte, short bool) string {
 	hash := fmt.Sprintf("%x", md5.Sum(url))
@@ -18,36 +24,39 @@ func HashURL(url []byte, short bool) string {
 	return hash
 }
 
-func IndexHandle(rw http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		id := r.URL.Path[1:]
-		if val, ok := DB[id]; ok {
-			rw.Header().Set("Location", val)
-			rw.WriteHeader(http.StatusTemporaryRedirect)
-			//http.Redirect(w, r, val, http.StatusTemporaryRedirect)
-		} else {
-			rw.WriteHeader(http.StatusBadRequest)
-			rw.Write([]byte("Not found"))
-		}
-	case http.MethodPost:
-		b, err := io.ReadAll(r.Body)
-		defer r.Body.Close()
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-		}
-		body := string(b)
-		key := HashURL(b, true)
-		DB[key] = body
-		rw.WriteHeader(http.StatusCreated)
-		rw.Write([]byte(key))
-	default:
-		http.Error(rw, "Wrong", http.StatusNotFound)
-		return
-	}
+func NewRouter() chi.Router {
+	r := chi.NewRouter()
+
+	r.Route("/", func(r chi.Router) {
+		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+			b, err := io.ReadAll(r.Body)
+			defer r.Body.Close()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			body := string(b)
+			key := Normalize(HashURL(b, true))
+			DB[key] = body
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte(key))
+		})
+		r.Get("/{ID}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "ID")
+			if val, ok := DB[id]; ok {
+				//w.Header().Set("Location", val)
+				//w.WriteHeader(http.StatusTemporaryRedirect)
+				http.Redirect(w, r, val, http.StatusTemporaryRedirect)
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("Not found"))
+			}
+		})
+	})
+
+	return r
 }
 
 func main() {
-	http.HandleFunc("/", IndexHandle)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	r := NewRouter()
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
