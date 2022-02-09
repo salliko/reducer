@@ -12,11 +12,11 @@ func NewRouter() chi.Router {
 	r := chi.NewRouter()
 	dbm := DatabaseManager{}
 	db := MapDatabase{db: &dbm}
-	var hashUrl Hasing = &Md5HashData{}
+	var hashURL Hasing = &Md5HashData{}
 
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-			inputUrl, err := io.ReadAll(r.Body)
+			inputURL, err := io.ReadAll(r.Body)
 			defer r.Body.Close()
 
 			if err != nil {
@@ -24,13 +24,13 @@ func NewRouter() chi.Router {
 				return
 			}
 
-			if _, err := url.ParseRequestURI(string(inputUrl)); err != nil {
+			if _, err := url.ParseRequestURI(string(inputURL)); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			key := hashUrl.Hash(inputUrl)
-			db.Create(key, string(inputUrl))
+			key := hashURL.Hash(inputURL)
+			db.Create(key, string(inputURL))
 
 			w.WriteHeader(http.StatusCreated)
 			w.Write([]byte(key))
