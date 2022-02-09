@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-chi/chi"
 	"io"
 	"log"
@@ -33,7 +34,8 @@ func NewRouter() chi.Router {
 			db.Create(key, string(inputURL))
 
 			w.WriteHeader(http.StatusCreated)
-			w.Write([]byte(key))
+			newURL := fmt.Sprintf("http://localhost:8080/%s", key)
+			w.Write([]byte(newURL))
 		})
 
 		r.Get("/{ID}", func(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +46,10 @@ func NewRouter() chi.Router {
 				w.Write([]byte("Not found"))
 				return
 			}
-			http.Redirect(w, r, val, http.StatusTemporaryRedirect)
+			w.Header().Set("Location", val)
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			//http.Redirect(w, r, val, http.StatusTemporaryRedirect)
+			w.Write([]byte("Found"))
 		})
 	})
 
