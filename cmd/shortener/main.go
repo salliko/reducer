@@ -1,32 +1,18 @@
 package main
 
 import (
-	"crypto/md5"
-	"fmt"
 	"github.com/go-chi/chi"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
 )
-
-func Normalize(hash string) string {
-	return strings.ReplaceAll(hash, "/", "X")
-}
-
-func HashURL(url []byte, short bool) string {
-	hash := fmt.Sprintf("%x", md5.Sum(url))
-	if short {
-		return hash[:6]
-	}
-	return hash
-}
 
 func NewRouter() chi.Router {
 	r := chi.NewRouter()
 	dbm := DatabaseManager{}
 	db := MapDatabase{db: &dbm}
+	var hashUrl Hasing = &Md5HashData{}
 
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +29,7 @@ func NewRouter() chi.Router {
 				return
 			}
 
-			key := Normalize(HashURL(inputUrl, true))
+			key := hashUrl.Hash(inputUrl)
 			db.Create(key, string(inputUrl))
 
 			w.WriteHeader(http.StatusCreated)
