@@ -26,6 +26,7 @@ func TestRouter(t *testing.T) {
 	defer ts.Close()
 
 	resp := testRequest(t, ts, "POST", "/", strings.NewReader("http://yandex.ru"))
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	//assert.Equal(t, "brand:renault", body)
 
