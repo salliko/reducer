@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -21,15 +22,73 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 }
 
 func TestRouter(t *testing.T) {
+	var hashURL Hasing = &Md5HashData{}
+
+	type want struct {
+		status int
+		body   string
+	}
+
+	tests := []struct {
+		name   string
+		url    string
+		method string
+		path   string
+		want   want
+	}{
+		{
+			name:   "#1 POST",
+			url:    "http://ya.ru",
+			method: http.MethodPost,
+			path:   "/",
+			want: want{
+				status: http.StatusCreated,
+				body:   fmt.Sprintf("http://localhost:8080/%s", hashURL.Hash([]byte("http://ya.ru"))),
+			},
+		},
+		{
+			name:   "#2 POST",
+			url:    "bfgbfgbsfg",
+			method: http.MethodPost,
+			path:   "/",
+			want: want{
+				status: http.StatusInternalServerError,
+				body:   "parse \"bfgbfgbsfg\": invalid URI for request\n",
+			},
+		},
+		{
+			name:   "#3 GET",
+			method: http.MethodGet,
+			path:   fmt.Sprintf("/%s", hashURL.Hash([]byte("http://ya.ru"))),
+			want: want{
+				status: http.StatusOK,
+			},
+		},
+		{
+			name:   "#4 GET",
+			method: http.MethodGet,
+			path:   "/sdfsdfsdf",
+			want: want{
+				status: http.StatusBadRequest,
+				body:   "Not found",
+			},
+		},
+	}
+
 	r := NewRouter()
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
-	resp := testRequest(t, ts, "POST", "/", strings.NewReader("http://yandex.ru"))
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusCreated, resp.StatusCode)
-	//assert.Equal(t, "brand:renault", body)
-
-	//resp, _ = testRequest(t, ts, "GET", "/"+body, nil)
-	//assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := testRequest(t, ts, tt.method, tt.path, strings.NewReader(tt.url))
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want.status, resp.StatusCode)
+			if tt.want.body != "" {
+				assert.Equal(t, tt.want.body, string(body))
+			}
+		})
+	}
 }
