@@ -15,7 +15,12 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 	req, err := http.NewRequest(method, ts.URL+path, body)
 	require.NoError(t, err)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{}
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	resp, err := client.Do(req)
 	require.NoError(t, err)
 
 	return resp
@@ -25,8 +30,9 @@ func TestRouter(t *testing.T) {
 	var hashURL Hasing = &Md5HashData{}
 
 	type want struct {
-		status int
-		body   string
+		status   int
+		location string
+		body     string
 	}
 
 	tests := []struct {
@@ -52,7 +58,7 @@ func TestRouter(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/",
 			want: want{
-				status: http.StatusInternalServerError,
+				status: http.StatusBadRequest,
 				body:   "parse \"bfgbfgbsfg\": invalid URI for request\n",
 			},
 		},
@@ -61,7 +67,8 @@ func TestRouter(t *testing.T) {
 			method: http.MethodGet,
 			path:   fmt.Sprintf("/%s", hashURL.Hash([]byte("http://ya.ru"))),
 			want: want{
-				status: http.StatusOK,
+				status:   http.StatusTemporaryRedirect,
+				location: "http://ya.ru",
 			},
 		},
 		{
@@ -88,6 +95,9 @@ func TestRouter(t *testing.T) {
 			assert.Equal(t, tt.want.status, resp.StatusCode)
 			if tt.want.body != "" {
 				assert.Equal(t, tt.want.body, string(body))
+			}
+			if tt.want.location != "" {
+				assert.Equal(t, tt.want.location, resp.Header.Get("Location"))
 			}
 		})
 	}

@@ -4,34 +4,22 @@ import (
 	"fmt"
 )
 
-type DatabaseManager struct {
-	data map[string]string
-}
-
 type MapDatabase struct {
-	db *DatabaseManager
+	db map[string]string
 }
 
-func (d *DatabaseManager) Insert(key, value string) {
-	if d.data == nil {
-		d.data = make(map[string]string)
-	}
-	d.data[key] = value
-}
-
-func (d *DatabaseManager) Select(id string) (string, error) {
-	if value, ok := d.data[id]; ok {
-		return value, nil
-	} else {
-		return "", fmt.Errorf("key %s not found", id)
-	}
+func NewMapDatabase() *MapDatabase {
+	return &MapDatabase{db: make(map[string]string)}
 }
 
 func (m *MapDatabase) Create(key, value string) {
-	m.db.Insert(key, value)
+	m.db[key] = value
 }
 
 func (m *MapDatabase) Select(key string) (string, error) {
-	value, err := m.db.Select(key)
-	return value, err
+	if value, ok := m.db[key]; ok {
+		return value, nil
+	} else {
+		return "", fmt.Errorf("key %s not found", key)
+	}
 }
