@@ -28,7 +28,7 @@ func GenerateShortURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
 		db.Create(key, string(inputURL))
 
 		w.WriteHeader(http.StatusCreated)
-		newURL := fmt.Sprintf("%s/%s", fullHostPath, key)
+		newURL := fmt.Sprintf("%s/%s", BaseURL, key)
 		w.Write([]byte(newURL))
 	}
 }
@@ -69,7 +69,7 @@ func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.Header().Add("Accept", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		newURL := fmt.Sprintf("%s/%s", fullHostPath, key)
+		newURL := fmt.Sprintf("%s/%s", BaseURL, key)
 
 		res := struct {
 			Result string `json:"result"`
