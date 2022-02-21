@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi"
 	"log"
@@ -36,6 +37,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "server address")
+	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "base url")
+	flag.StringVar(&cfg.FileStoragePath, "f", cfg.FileStoragePath, "file storage path")
+
+	flag.Parse()
+
 	r := NewRouter(cfg)
 	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
 }
