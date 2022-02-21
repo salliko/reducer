@@ -50,7 +50,7 @@ func RedirectFromShortToFull(db *MapDatabase) http.HandlerFunc {
 func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var v struct {
-			Url string `json:"url"`
+			URL string `json:"url"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
@@ -58,13 +58,13 @@ func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
 			return
 		}
 
-		if _, err := url.ParseRequestURI(v.Url); err != nil {
+		if _, err := url.ParseRequestURI(v.URL); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		key := hashURL.Hash([]byte(v.Url))
-		db.Create(key, v.Url)
+		key := hashURL.Hash([]byte(v.URL))
+		db.Create(key, v.URL)
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.Header().Add("Accept", "application/json")
