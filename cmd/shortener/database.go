@@ -52,11 +52,11 @@ func NewFileDatabase(fileName string) *FileDatabase {
 
 func (f *FileDatabase) Create(key, value string) {
 	file, err := os.OpenFile(f.path, os.O_WRONLY|os.O_CREATE, 0777)
-	defer file.Close()
-
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	defer file.Close()
 
 	for _, rowFile := range f.db.Rows {
 		if rowFile.Hash == key {
