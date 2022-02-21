@@ -7,11 +7,11 @@ import (
 	"net/http"
 )
 
-//const (
-//	host         = "http://localhost"
-//	port         = ":8080"
-//	fullHostPath = host + port
-//)
+const (
+	host         = "http://localhost"
+	port         = ":8080"
+	fullHostPath = host + port
+)
 
 var (
 	ServerAddress string
@@ -42,8 +42,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ServerAddress = cfg.ServerAddress
-	BaseURL = cfg.BaseURL
+	if cfg.ServerAddress != "" {
+		ServerAddress = cfg.ServerAddress
+	} else {
+		ServerAddress = fullHostPath
+	}
+
+	if cfg.BaseURL != "" {
+		BaseURL = cfg.BaseURL
+	} else {
+		BaseURL = fullHostPath
+	}
 
 	r := NewRouter()
 	log.Fatal(http.ListenAndServe(ServerAddress, r))
