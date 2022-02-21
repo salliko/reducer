@@ -7,30 +7,19 @@ import (
 	"net/http"
 )
 
-const (
-	host         = "http://localhost"
-	port         = ":8080"
-	fullHostPath = host + port
-)
-
-var (
-	ServerAddress string
-	BaseURL       string
-)
-
 type Config struct {
-	ServerAddress string `env:"SERVER_ADDRESS"`
-	BaseURL       string `env:"BASE_URL"`
+	ServerAddress string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
+	BaseURL       string `env:"BASE_URL" envDefault:"localhost:8080"`
 }
 
-func NewRouter() chi.Router {
+func NewRouter(cfg Config) chi.Router {
 	r := chi.NewRouter()
 	db := NewMapDatabase()
 	hashURL := &Md5HashData{}
 
-	r.Post("/", GenerateShortURL(hashURL, db))
+	r.Post("/", GenerateShortURL(hashURL, db, cfg))
 	r.Get("/{ID}", RedirectFromShortToFull(db))
-	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db))
+	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db, cfg))
 
 	return r
 }
@@ -42,18 +31,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if cfg.ServerAddress != "" {
-		ServerAddress = cfg.ServerAddress
-	} else {
-		ServerAddress = fullHostPath
-	}
-
-	if cfg.BaseURL != "" {
-		BaseURL = cfg.BaseURL
-	} else {
-		BaseURL = fullHostPath
-	}
-
-	r := NewRouter()
-	log.Fatal(http.ListenAndServe(ServerAddress, r))
+	r := NewRouter(cfg)
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
 }

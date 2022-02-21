@@ -9,7 +9,7 @@ import (
 	"net/url"
 )
 
-func GenerateShortURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
+func GenerateShortURL(hashURL Hasing, db *MapDatabase, cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		inputURL, err := io.ReadAll(r.Body)
 		defer r.Body.Close()
@@ -28,7 +28,7 @@ func GenerateShortURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
 		db.Create(key, string(inputURL))
 
 		w.WriteHeader(http.StatusCreated)
-		newURL := fmt.Sprintf("%s/%s", BaseURL, key)
+		newURL := fmt.Sprintf("%s/%s", cfg.BaseURL, key)
 		w.Write([]byte(newURL))
 	}
 }
@@ -47,7 +47,7 @@ func RedirectFromShortToFull(db *MapDatabase) http.HandlerFunc {
 	}
 }
 
-func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
+func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase, cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var v struct {
 			URL string `json:"url"`
@@ -69,7 +69,7 @@ func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.Header().Add("Accept", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		newURL := fmt.Sprintf("%s/%s", BaseURL, key)
+		newURL := fmt.Sprintf("%s/%s", cfg.BaseURL, key)
 
 		res := struct {
 			Result string `json:"result"`
