@@ -19,6 +19,7 @@ func NewRouter() chi.Router {
 
 	r.Post("/", GenerateShortURL(hashURL, db))
 	r.Get("/{ID}", RedirectFromShortToFull(db))
+	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db))
 
 	return r
 }

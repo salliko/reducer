@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
 	"io"
@@ -43,5 +44,44 @@ func RedirectFromShortToFull(db *MapDatabase) http.HandlerFunc {
 		}
 		http.Redirect(w, r, val, http.StatusTemporaryRedirect)
 		w.Write([]byte("Found"))
+	}
+}
+
+func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Url string `json:"url"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if _, err := url.ParseRequestURI(v.Url); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		key := hashURL.Hash([]byte(v.Url))
+		db.Create(key, v.Url)
+
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.Header().Add("Accept", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		newURL := fmt.Sprintf("%s/%s", fullHostPath, key)
+
+		res := struct {
+			Result string `json:"result"`
+		}{
+			Result: newURL,
+		}
+
+		data, err := json.Marshal(res)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Write(data)
 	}
 }

@@ -80,6 +80,16 @@ func TestRouter(t *testing.T) {
 				body:   "Not found",
 			},
 		},
+		{
+			name:   "#5 POST API",
+			url:    `{"url": "http://ya.ru"}`,
+			method: http.MethodPost,
+			path:   "/api/shorten",
+			want: want{
+				status: http.StatusCreated,
+				body:   `{"result":"http://localhost:8080/1b556b"}`,
+			},
+		},
 	}
 
 	r := NewRouter()
