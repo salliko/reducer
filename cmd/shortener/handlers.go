@@ -9,7 +9,7 @@ import (
 	"net/url"
 )
 
-func GenerateShortURL(hashURL Hasing, db *MapDatabase, cfg Config) http.HandlerFunc {
+func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		inputURL, err := io.ReadAll(r.Body)
 		defer r.Body.Close()
@@ -33,7 +33,7 @@ func GenerateShortURL(hashURL Hasing, db *MapDatabase, cfg Config) http.HandlerF
 	}
 }
 
-func RedirectFromShortToFull(db *MapDatabase) http.HandlerFunc {
+func RedirectFromShortToFull(db Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "ID")
 		val, err := db.Select(id)
@@ -47,7 +47,7 @@ func RedirectFromShortToFull(db *MapDatabase) http.HandlerFunc {
 	}
 }
 
-func GenerateShortenJSONURL(hashURL Hasing, db *MapDatabase, cfg Config) http.HandlerFunc {
+func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var v struct {
 			URL string `json:"url"`

@@ -8,13 +8,19 @@ import (
 )
 
 type Config struct {
-	ServerAddress string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
-	BaseURL       string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
+	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
 func NewRouter(cfg Config) chi.Router {
 	r := chi.NewRouter()
-	db := NewMapDatabase()
+	var db Database
+	if cfg.FileStoragePath != "" {
+		db = NewFileDatabase(cfg.FileStoragePath)
+	} else {
+		db = NewMapDatabase()
+	}
 	hashURL := &Md5HashData{}
 
 	r.Post("/", GenerateShortURL(hashURL, db, cfg))
@@ -30,7 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	r := NewRouter(cfg)
 	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
 }
