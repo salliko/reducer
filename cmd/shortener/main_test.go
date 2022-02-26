@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/caarlos0/env/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -31,10 +29,9 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 func TestRouter(t *testing.T) {
 	var hashURL Hasing = &Md5HashData{}
 
-	var cfg Config
-	err := env.Parse(&cfg)
-	if err != nil {
-		log.Fatal(err)
+	cfg := Config{
+		ServerAddress: "localhost:8080",
+		BaseURL:       "http://localhost:8080",
 	}
 
 	type want struct {

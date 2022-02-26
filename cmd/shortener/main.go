@@ -8,6 +8,11 @@ import (
 	"net/http"
 )
 
+type Database interface {
+	Create(key, value string) error
+	Select(key string) (string, error)
+}
+
 type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
 	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
@@ -17,8 +22,12 @@ type Config struct {
 func NewRouter(cfg Config) chi.Router {
 	r := chi.NewRouter()
 	var db Database
+	var err error
 	if cfg.FileStoragePath != "" {
-		db = NewFileDatabase(cfg.FileStoragePath)
+		db, err = NewFileDatabase(cfg.FileStoragePath)
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
 		db = NewMapDatabase()
 	}

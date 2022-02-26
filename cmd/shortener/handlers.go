@@ -3,11 +3,21 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi"
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/go-chi/chi"
 )
+
+func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config) (string, error) {
+	key := hashURL.Hash(URL)
+	err := db.Create(key, string(URL))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%s", cfg.BaseURL, key), nil
+}
 
 func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -24,11 +34,13 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 			return
 		}
 
-		key := hashURL.Hash(inputURL)
-		db.Create(key, string(inputURL))
+		newURL, err := InsertURL(inputURL, hashURL, db, cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		w.WriteHeader(http.StatusCreated)
-		newURL := fmt.Sprintf("%s/%s", cfg.BaseURL, key)
 		w.Write([]byte(newURL))
 	}
 }
@@ -63,13 +75,14 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 			return
 		}
 
-		key := hashURL.Hash([]byte(v.URL))
-		db.Create(key, v.URL)
+		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.Header().Add("Accept", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		newURL := fmt.Sprintf("%s/%s", cfg.BaseURL, key)
 
 		res := struct {
 			Result string `json:"result"`
