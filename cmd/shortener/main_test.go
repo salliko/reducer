@@ -29,6 +29,11 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 func TestRouter(t *testing.T) {
 	var hashURL Hasing = &Md5HashData{}
 
+	cfg := Config{
+		ServerAddress: "localhost:8080",
+		BaseURL:       "http://localhost:8080",
+	}
+
 	type want struct {
 		status   int
 		location string
@@ -80,9 +85,19 @@ func TestRouter(t *testing.T) {
 				body:   "Not found",
 			},
 		},
+		{
+			name:   "#5 POST API",
+			url:    `{"url": "http://ya.ru"}`,
+			method: http.MethodPost,
+			path:   "/api/shorten",
+			want: want{
+				status: http.StatusCreated,
+				body:   `{"result":"http://localhost:8080/1b556b"}`,
+			},
+		},
 	}
 
-	r := NewRouter()
+	r := NewRouter(cfg)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
