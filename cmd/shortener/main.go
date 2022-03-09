@@ -33,6 +33,8 @@ func NewRouter(cfg Config) chi.Router {
 	}
 	hashURL := &Md5HashData{}
 
+	r.Use(MyGzipMiddleware)
+
 	r.Post("/", GenerateShortURL(hashURL, db, cfg))
 	r.Get("/{ID}", RedirectFromShortToFull(db))
 	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db, cfg))
