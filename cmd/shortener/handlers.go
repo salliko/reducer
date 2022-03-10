@@ -4,12 +4,11 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/go-chi/chi"
 )
 
 type gzipWriter struct {
@@ -24,27 +23,23 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 
 func MyGzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//log.Println("MyGzipMiddleware")
+		//next.ServeHTTP(w, r)
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(w, r)
 			return
 		}
-
-		gz, err := gzip.NewReader(r.Body)
+		//log.Println("MyGzipMiddleware")
+		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			io.WriteString(w, err.Error())
 			return
 		}
 		defer gz.Close()
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		r.Body = io.NopCloser(gz)
-
 		w.Header().Set("Content-Encoding", "gzip")
-		next.ServeHTTP(w, r)
+		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
+		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
 	})
 }
 
@@ -59,8 +54,22 @@ func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config) (string, err
 
 func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		inputURL, err := io.ReadAll(r.Body)
-		defer r.Body.Close()
+
+		var reader io.Reader
+
+		if r.Header.Get(`Content-Encoding`) == `gzip` {
+			gz, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			reader = gz
+			defer gz.Close()
+		} else {
+			reader = r.Body
+		}
+
+		inputURL, err := io.ReadAll(reader)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -79,21 +88,7 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			// создаём gzip.Writer поверх текущего w
-			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-			if err != nil {
-				io.WriteString(w, err.Error())
-				return
-			}
-			defer gz.Close()
-
-			w.Header().Set("Content-Encoding", "gzip")
-			// передаём обработчику страницы переменную типа gzipWriter для вывода данных
-			gz.Write([]byte(newURL))
-		} else {
-			w.Write([]byte(newURL))
-		}
+		w.Write([]byte(newURL))
 	}
 }
 
@@ -117,7 +112,21 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 			URL string `json:"url"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+		var reader io.Reader
+
+		if r.Header.Get(`Content-Encoding`) == `gzip` {
+			gz, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			reader = gz
+			defer gz.Close()
+		} else {
+			reader = r.Body
+		}
+
+		if err := json.NewDecoder(reader).Decode(&v); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -147,20 +156,7 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			// создаём gzip.Writer поверх текущего w
-			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-			if err != nil {
-				io.WriteString(w, err.Error())
-				return
-			}
-			defer gz.Close()
 
-			w.Header().Set("Content-Encoding", "gzip")
-			// передаём обработчику страницы переменную типа gzipWriter для вывода данных
-			gz.Write(data)
-		} else {
-			w.Write(data)
-		}
+		w.Write(data)
 	}
 }
