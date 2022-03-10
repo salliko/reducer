@@ -29,15 +29,22 @@ func MyGzipMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+		gz, err := gzip.NewReader(r.Body)
 		if err != nil {
-			io.WriteString(w, err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		defer gz.Close()
 
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		r.Body = io.NopCloser(gz)
+
 		w.Header().Set("Content-Encoding", "gzip")
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -72,7 +79,21 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(newURL))
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			// создаём gzip.Writer поверх текущего w
+			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+			if err != nil {
+				io.WriteString(w, err.Error())
+				return
+			}
+			defer gz.Close()
+
+			w.Header().Set("Content-Encoding", "gzip")
+			// передаём обработчику страницы переменную типа gzipWriter для вывода данных
+			gz.Write([]byte(newURL))
+		} else {
+			w.Write([]byte(newURL))
+		}
 	}
 }
 
@@ -126,6 +147,20 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		w.Write(data)
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			// создаём gzip.Writer поверх текущего w
+			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+			if err != nil {
+				io.WriteString(w, err.Error())
+				return
+			}
+			defer gz.Close()
+
+			w.Header().Set("Content-Encoding", "gzip")
+			// передаём обработчику страницы переменную типа gzipWriter для вывода данных
+			gz.Write(data)
+		} else {
+			w.Write(data)
+		}
 	}
 }
