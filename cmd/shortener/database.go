@@ -7,7 +7,7 @@ import (
 )
 
 type MapDatabase struct {
-	db map[string]string
+	db map[string]map[string]string
 }
 
 //func NewMapDatabase() *MapDatabase {
@@ -174,24 +174,33 @@ type MapDatabase struct {
 //}
 
 func NewMapDatabase() *MapDatabase {
-	return &MapDatabase{db: make(map[string]string)}
+	return &MapDatabase{db: make(map[string]map[string]string)}
 }
 
-func (m *MapDatabase) Create(key, value string) error {
-	m.db[key] = value
+func (m *MapDatabase) Create(key, value, userID string) error {
+	m.db[key] = map[string]string{
+		"URL":    value,
+		"userID": userID,
+	}
 	return nil
 }
 
 func (m *MapDatabase) Select(key string) (string, error) {
 	if value, ok := m.db[key]; ok {
-		return value, nil
+		return value["URL"], nil
 	} else {
 		return "", fmt.Errorf("key %s not found", key)
 	}
 }
 
-func (m *MapDatabase) SelectAll() map[string]string {
-	return m.db
+func (m *MapDatabase) SelectAll(userID string) map[string]string {
+	data := make(map[string]string)
+	for key, val := range m.db {
+		if val["userID"] == userID {
+			data[key] = val["URL"]
+		}
+	}
+	return data
 }
 
 type FileDatabase struct {
@@ -200,8 +209,9 @@ type FileDatabase struct {
 }
 
 type RowFileDatabase struct {
-	Hash string `json:"hash"`
-	URL  string `json:"url"`
+	Hash   string `json:"hash"`
+	URL    string `json:"url"`
+	UserID string `json:"user_id"`
 }
 
 type RowsFileDatabase struct {
@@ -249,7 +259,7 @@ func (f *FileDatabase) hasKey(key string) bool {
 	return false
 }
 
-func (f *FileDatabase) Create(key, value string) error {
+func (f *FileDatabase) Create(key, value, userID string) error {
 	if f.hasKey(key) {
 		return nil
 	}
@@ -261,7 +271,7 @@ func (f *FileDatabase) Create(key, value string) error {
 
 	defer file.Close()
 
-	f.db.Rows = append(f.db.Rows, RowFileDatabase{Hash: key, URL: value})
+	f.db.Rows = append(f.db.Rows, RowFileDatabase{Hash: key, URL: value, UserID: userID})
 
 	err = json.NewEncoder(file).Encode(f.db)
 	if err != nil {
@@ -287,10 +297,12 @@ func (f *FileDatabase) Select(key string) (string, error) {
 
 }
 
-func (f *FileDatabase) SelectAll() map[string]string {
+func (f *FileDatabase) SelectAll(userID string) map[string]string {
 	m := make(map[string]string)
 	for _, userRow := range f.db.Rows {
-		m[userRow.Hash] = userRow.URL
+		if userRow.UserID == userID {
+			m[userRow.Hash] = userRow.URL
+		}
 	}
 	return m
 }

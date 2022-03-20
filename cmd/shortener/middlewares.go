@@ -53,7 +53,7 @@ func CookieMiddleware(next http.Handler) http.Handler {
 				HttpOnly: false,
 			}
 			http.SetCookie(w, newCookie)
-			//r.AddCookie(newCookie)
+			r.AddCookie(newCookie)
 		}
 		next.ServeHTTP(w, r)
 	})

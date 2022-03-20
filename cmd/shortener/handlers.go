@@ -10,18 +10,9 @@ import (
 	"net/url"
 )
 
-//func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID string) (string, error) {
-//	key := hashURL.Hash(URL)
-//	err := db.Create(userID, key, string(URL))
-//	if err != nil {
-//		return "", err
-//	}
-//	return fmt.Sprintf("%s/%s", cfg.BaseURL, key), nil
-//}
-
-func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config) (string, error) {
+func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID string) (string, error) {
 	key := hashURL.Hash(URL)
-	err := db.Create(key, string(URL))
+	err := db.Create(key, string(URL), userID)
 	if err != nil {
 		return "", err
 	}
@@ -57,7 +48,13 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 			return
 		}
 
-		newURL, err := InsertURL(inputURL, hashURL, db, cfg)
+		cookie, err := r.Cookie("user_id")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		newURL, err := InsertURL(inputURL, hashURL, db, cfg, cookie.Value)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -113,7 +110,13 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 			return
 		}
 
-		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg)
+		cookie, err := r.Cookie("user_id")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg, cookie.Value)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -147,7 +150,13 @@ func GetAllShortenURLS(db Database, cfg Config) http.HandlerFunc {
 
 		var rows []rowData
 
-		allRows := db.SelectAll()
+		cookie, err := r.Cookie("user_id")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		allRows := db.SelectAll(cookie.Value)
 		if len(allRows) == 0 {
 			http.Error(w, "No Content", http.StatusNoContent)
 			return
