@@ -67,15 +67,15 @@ func TestRouter(t *testing.T) {
 				body:   "parse \"bfgbfgbsfg\": invalid URI for request\n",
 			},
 		},
-		//{
-		//	name:   "#3 GET",
-		//	method: http.MethodGet,
-		//	path:   fmt.Sprintf("/%s", hashURL.Hash([]byte("http://ya.ru"))),
-		//	want: want{
-		//		status:   http.StatusTemporaryRedirect,
-		//		location: "http://ya.ru",
-		//	},
-		//},
+		{
+			name:   "#3 GET",
+			method: http.MethodGet,
+			path:   fmt.Sprintf("/%s", hashURL.Hash([]byte("http://ya.ru"))),
+			want: want{
+				status:   http.StatusTemporaryRedirect,
+				location: "http://ya.ru",
+			},
+		},
 		{
 			name:   "#4 GET",
 			method: http.MethodGet,

@@ -9,9 +9,9 @@ import (
 )
 
 type Database interface {
-	Create(userID, key, value string) error
-	Select(userID, key string) (string, error)
-	SelectAll(string) map[string]string
+	Create(key, value string) error
+	Select(key string) (string, error)
+	SelectAll() map[string]string
 }
 
 type Config struct {

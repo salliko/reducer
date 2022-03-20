@@ -10,9 +10,18 @@ import (
 	"net/url"
 )
 
-func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID string) (string, error) {
+//func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID string) (string, error) {
+//	key := hashURL.Hash(URL)
+//	err := db.Create(userID, key, string(URL))
+//	if err != nil {
+//		return "", err
+//	}
+//	return fmt.Sprintf("%s/%s", cfg.BaseURL, key), nil
+//}
+
+func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config) (string, error) {
 	key := hashURL.Hash(URL)
-	err := db.Create(userID, key, string(URL))
+	err := db.Create(key, string(URL))
 	if err != nil {
 		return "", err
 	}
@@ -48,13 +57,7 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 			return
 		}
 
-		cookie, err := r.Cookie("user_id")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		newURL, err := InsertURL(inputURL, hashURL, db, cfg, cookie.Value)
+		newURL, err := InsertURL(inputURL, hashURL, db, cfg)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -69,13 +72,7 @@ func RedirectFromShortToFull(db Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "ID")
 
-		cookie, err := r.Cookie("user_id")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		val, err := db.Select(cookie.Value, id)
+		val, err := db.Select(id)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Not found"))
@@ -116,13 +113,7 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 			return
 		}
 
-		cookie, err := r.Cookie("user_id")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg, cookie.Value)
+		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -155,13 +146,8 @@ func GetAllShortenURLS(db Database, cfg Config) http.HandlerFunc {
 		}
 
 		var rows []rowData
-		cookie, err := r.Cookie("user_id")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
 
-		allRows := db.SelectAll(cookie.Value)
+		allRows := db.SelectAll()
 		if len(allRows) == 0 {
 			http.Error(w, "No Content", http.StatusNoContent)
 			return
