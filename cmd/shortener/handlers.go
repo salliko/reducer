@@ -196,5 +196,6 @@ func Ping(cfg Config) http.HandlerFunc {
 		//}
 
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	}
 }
