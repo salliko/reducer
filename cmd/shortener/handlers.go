@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID string) (string, error) {
@@ -188,8 +190,11 @@ func Ping(cfg Config) http.HandlerFunc {
 		}
 		defer db.Close()
 
-		err = db.Ping()
-		if err != nil {
+		var ctx context.Context
+		ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+		defer cancel()
+
+		if err = db.PingContext(ctx); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
