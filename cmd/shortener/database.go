@@ -27,6 +27,10 @@ func (m *MapDatabase) Select(key string) (string, error) {
 	}
 }
 
+func (m *MapDatabase) SelectAll() map[string]string {
+	return m.db
+}
+
 type FileDatabase struct {
 	path string
 	db   RowsFileDatabase
@@ -69,7 +73,7 @@ func (f *FileDatabase) sync() error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -118,4 +122,12 @@ func (f *FileDatabase) Select(key string) (string, error) {
 
 	return "", fmt.Errorf("key %s not found", key)
 
+}
+
+func (f *FileDatabase) SelectAll() map[string]string {
+	m := make(map[string]string)
+	for _, rowVal := range f.db.Rows {
+		m[rowVal.Hash] = rowVal.URL
+	}
+	return m
 }

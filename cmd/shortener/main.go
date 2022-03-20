@@ -11,6 +11,7 @@ import (
 type Database interface {
 	Create(key, value string) error
 	Select(key string) (string, error)
+	SelectAll() map[string]string
 }
 
 type Config struct {
@@ -33,11 +34,13 @@ func NewRouter(cfg Config) chi.Router {
 	}
 	hashURL := &Md5HashData{}
 
-	r.Use(MyGzipMiddleware)
+	r.Use(GzipMiddleware)
+	r.Use(CookieMiddleware)
 
 	r.Post("/", GenerateShortURL(hashURL, db, cfg))
 	r.Get("/{ID}", RedirectFromShortToFull(db))
 	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db, cfg))
+	r.Get("/api/user/urls", GetAllShortenURLS(db, cfg))
 
 	return r
 }

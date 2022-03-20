@@ -8,40 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 )
-
-type gzipWriter struct {
-	http.ResponseWriter
-	Writer io.Writer
-}
-
-func (w gzipWriter) Write(b []byte) (int, error) {
-	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
-	return w.Writer.Write(b)
-}
-
-func MyGzipMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//log.Println("MyGzipMiddleware")
-		//next.ServeHTTP(w, r)
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			next.ServeHTTP(w, r)
-			return
-		}
-		//log.Println("MyGzipMiddleware")
-		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-		if err != nil {
-			io.WriteString(w, err.Error())
-			return
-		}
-		defer gz.Close()
-
-		w.Header().Set("Content-Encoding", "gzip")
-		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
-	})
-}
 
 func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config) (string, error) {
 	key := hashURL.Hash(URL)
@@ -157,6 +124,37 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 			return
 		}
 
+		w.Write(data)
+	}
+}
+
+func GetAllShortenURLS(db Database, cfg Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		type rowData struct {
+			ShortURL    string `json:"short_url"`
+			OriginalURL string `json:"original_url"`
+		}
+
+		var rows []rowData
+
+		allRows := db.SelectAll()
+
+		if len(allRows) == 0 {
+			http.Error(w, "No Content", http.StatusNoContent)
+			return
+		}
+
+		for key, value := range allRows {
+			shortURL := fmt.Sprintf("%s/%s", cfg.BaseURL, key)
+			rows = append(rows, rowData{ShortURL: shortURL, OriginalURL: value})
+		}
+
+		data, err := json.Marshal(rows)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.Write(data)
 	}
 }
