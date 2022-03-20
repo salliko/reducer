@@ -2,11 +2,11 @@ package main
 
 import (
 	"compress/gzip"
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
-	_ "github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4"
 	"io"
 	"net/http"
 	"net/url"
@@ -181,19 +181,18 @@ func GetAllShortenURLS(db Database, cfg Config) http.HandlerFunc {
 
 func Ping(cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		db, err := sql.Open("postgres", cfg.DatabaseDSN)
+		conn, err := pgx.Connect(context.Background(), cfg.DatabaseDSN)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		defer db.Close()
+		defer conn.Close(context.Background())
 
-		//err = db.Ping()
-		//
-		//if err != nil {
-		//	http.Error(w, err.Error(), http.StatusInternalServerError)
-		//	return
-		//}
+		err = conn.Ping(context.Background())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
