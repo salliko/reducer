@@ -18,6 +18,7 @@ type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
 	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 func NewRouter(cfg Config) chi.Router {
@@ -41,6 +42,7 @@ func NewRouter(cfg Config) chi.Router {
 	r.Get("/{ID}", RedirectFromShortToFull(db))
 	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db, cfg))
 	r.Get("/api/user/urls", GetAllShortenURLS(db, cfg))
+	r.Get("/ping", Ping(cfg))
 
 	return r
 }
@@ -55,6 +57,7 @@ func main() {
 	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "server address")
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "base url")
 	flag.StringVar(&cfg.FileStoragePath, "f", cfg.FileStoragePath, "file storage path")
+	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "database dsn")
 
 	flag.Parse()
 
