@@ -3,32 +3,38 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 )
 
 type MapDatabase struct {
-	db map[string]string
+	db map[string]map[string]string
 }
 
 func NewMapDatabase() *MapDatabase {
-	return &MapDatabase{db: make(map[string]string)}
+	return &MapDatabase{db: make(map[string]map[string]string)}
 }
 
-func (m *MapDatabase) Create(key, value string) error {
-	m.db[key] = value
+func (m *MapDatabase) Create(userID, key, value string) error {
+	if URLS, ok := m.db[userID]; ok {
+		URLS[key] = value
+	} else {
+		m.db[userID] = map[string]string{key: value}
+	}
 	return nil
 }
 
-func (m *MapDatabase) Select(key string) (string, error) {
-	if value, ok := m.db[key]; ok {
+func (m *MapDatabase) Select(userID, key string) (string, error) {
+	data := m.db[userID]
+	if value, ok := data[key]; ok {
 		return value, nil
 	} else {
 		return "", fmt.Errorf("key %s not found", key)
 	}
 }
 
-func (m *MapDatabase) SelectAll() map[string]string {
-	return m.db
+func (m *MapDatabase) SelectAll(userID string) map[string]string {
+	return m.db[userID]
 }
 
 type FileDatabase struct {
@@ -36,13 +42,18 @@ type FileDatabase struct {
 	db   RowsFileDatabase
 }
 
-type RowFileDatabase struct {
+type RowURL struct {
 	Hash string `json:"hash"`
 	URL  string `json:"url"`
 }
 
+type RowUser struct {
+	UserID string   `json:"user_id"`
+	URLS   []RowURL `json:"urls"`
+}
+
 type RowsFileDatabase struct {
-	Rows []RowFileDatabase `json:"rows"`
+	Rows []RowUser `json:"rows"`
 }
 
 func NewFileDatabase(fileName string) (*FileDatabase, error) {
@@ -77,20 +88,23 @@ func (f *FileDatabase) sync() error {
 	return nil
 }
 
-func (f *FileDatabase) hasKey(key string) bool {
+func (f *FileDatabase) hasKey(userID, key string) bool {
 	for _, rowFile := range f.db.Rows {
-		if rowFile.Hash == key {
-			return true
+		if rowFile.UserID == userID {
+			for _, row := range rowFile.URLS {
+				if row.Hash == key {
+					return true
+				}
+			}
 		}
 	}
 	return false
 }
 
-func (f *FileDatabase) Create(key, value string) error {
-	if f.hasKey(key) {
+func (f *FileDatabase) Create(userID, key, value string) error {
+	if f.hasKey(userID, key) {
 		return nil
 	}
-
 	file, err := os.OpenFile(f.path, os.O_WRONLY|os.O_CREATE, 0777)
 	if err != nil {
 		return err
@@ -98,7 +112,27 @@ func (f *FileDatabase) Create(key, value string) error {
 
 	defer file.Close()
 
-	f.db.Rows = append(f.db.Rows, RowFileDatabase{Hash: key, URL: value})
+	//f.db.Rows = append(f.db.Rows, RowFileDatabase{Hash: key, URL: value})
+	found := false
+	for index, dataUsers := range f.db.Rows {
+		if dataUsers.UserID == userID {
+			f.db.Rows[index].URLS = append(dataUsers.URLS, RowURL{Hash: key, URL: value})
+			log.Println(dataUsers.URLS)
+			found = true
+			break
+		}
+	}
+
+	log.Println(found)
+
+	if !found {
+		f.db.Rows = append(f.db.Rows, RowUser{
+			UserID: userID,
+			URLS: []RowURL{
+				{Hash: key, URL: value},
+			},
+		})
+	}
 
 	err = json.NewEncoder(file).Encode(f.db)
 	if err != nil {
@@ -108,15 +142,19 @@ func (f *FileDatabase) Create(key, value string) error {
 	return nil
 }
 
-func (f *FileDatabase) Select(key string) (string, error) {
+func (f *FileDatabase) Select(userID, key string) (string, error) {
 	err := f.sync()
 	if err != nil {
 		return "", err
 	}
 
-	for _, rowVal := range f.db.Rows {
-		if rowVal.Hash == key {
-			return rowVal.URL, nil
+	for _, userRow := range f.db.Rows {
+		if userRow.UserID == userID {
+			for _, row := range userRow.URLS {
+				if row.Hash == key {
+					return row.URL, nil
+				}
+			}
 		}
 	}
 
@@ -124,10 +162,14 @@ func (f *FileDatabase) Select(key string) (string, error) {
 
 }
 
-func (f *FileDatabase) SelectAll() map[string]string {
+func (f *FileDatabase) SelectAll(userID string) map[string]string {
 	m := make(map[string]string)
-	for _, rowVal := range f.db.Rows {
-		m[rowVal.Hash] = rowVal.URL
+	for _, userRow := range f.db.Rows {
+		if userRow.UserID == userID {
+			for _, row := range userRow.URLS {
+				m[row.Hash] = row.URL
+			}
+		}
 	}
 	return m
 }

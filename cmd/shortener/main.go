@@ -9,9 +9,9 @@ import (
 )
 
 type Database interface {
-	Create(key, value string) error
-	Select(key string) (string, error)
-	SelectAll() map[string]string
+	Create(userID, key, value string) error
+	Select(userID, key string) (string, error)
+	SelectAll(string) map[string]string
 }
 
 type Config struct {
@@ -34,8 +34,8 @@ func NewRouter(cfg Config) chi.Router {
 	}
 	hashURL := &Md5HashData{}
 
-	r.Use(GzipMiddleware)
 	r.Use(CookieMiddleware)
+	r.Use(GzipMiddleware)
 
 	r.Post("/", GenerateShortURL(hashURL, db, cfg))
 	r.Get("/{ID}", RedirectFromShortToFull(db))
