@@ -25,7 +25,12 @@ func NewRouter(cfg Config) chi.Router {
 	r := chi.NewRouter()
 	var db Database
 	var err error
-	if cfg.FileStoragePath != "" {
+	if cfg.DatabaseDSN != "" {
+		db, err = NewPostgresqlDatabase(cfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if cfg.FileStoragePath != "" {
 		db, err = NewFileDatabase(cfg.FileStoragePath)
 		if err != nil {
 			log.Fatal(err)
