@@ -202,12 +202,12 @@ func Ping(cfg Config) http.HandlerFunc {
 func GenerateManyShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type inputValue struct {
-			CorrelationId string `json:"correlation_id"`
+			CorrelationID string `json:"correlation_id"`
 			OriginalURL   string `json:"original_url"`
 		}
 
 		type outputValue struct {
-			CorrelationId string `json:"correlation_id"`
+			CorrelationID string `json:"correlation_id"`
 			ShortURL      string `json:"short_url"`
 		}
 
@@ -250,7 +250,7 @@ func GenerateManyShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Ha
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			outputValues = append(outputValues, outputValue{CorrelationId: value.CorrelationId, ShortURL: newURL})
+			outputValues = append(outputValues, outputValue{CorrelationID: value.CorrelationID, ShortURL: newURL})
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
