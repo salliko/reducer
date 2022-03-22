@@ -15,6 +15,10 @@ var (
 		values ($1, $2, $3)
 	`
 
+	hasValue = `
+		select original from urls where hash = $1
+	`
+
 	selectOriginal = `
 		select original from urls where hash = $1
 	`

@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4"
 	"log"
 	"os"
 )
+
+var ErrConflict = errors.New(`conflict`)
 
 type MapDatabase struct {
 	db map[string]map[string]string
@@ -18,6 +21,9 @@ func NewMapDatabase() *MapDatabase {
 }
 
 func (m *MapDatabase) Create(key, value, userID string) error {
+	if _, ok := m.db[key]; ok {
+		return ErrConflict
+	}
 	m.db[key] = map[string]string{
 		"URL":    value,
 		"userID": userID,
@@ -101,7 +107,7 @@ func (f *FileDatabase) hasKey(key string) bool {
 
 func (f *FileDatabase) Create(key, value, userID string) error {
 	if f.hasKey(key) {
-		return nil
+		return ErrConflict
 	}
 
 	file, err := os.OpenFile(f.path, os.O_WRONLY|os.O_CREATE, 0777)
@@ -172,6 +178,17 @@ func (p *PostgresqlDatabase) Create(key, value, userID string) error {
 		return err
 	}
 	defer conn.Close(context.Background())
+
+	original, err := p.Select(key)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+	}
+
+	if original != "" {
+		return ErrConflict
+	}
 
 	_, err = conn.Query(context.Background(), insert, key, value, userID)
 	if err != nil {

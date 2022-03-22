@@ -32,6 +32,8 @@ func TestRouter(t *testing.T) {
 	cfg := Config{
 		ServerAddress: "localhost:8080",
 		BaseURL:       "http://localhost:8080",
+		//FileStoragePath: "C:/Users/snup4/Learn/reducer/test_bd.txt",
+		//DatabaseDSN: "postgres://postgres:postgres@localhost:5432/postgres",
 	}
 
 	type want struct {
@@ -87,22 +89,42 @@ func TestRouter(t *testing.T) {
 		},
 		{
 			name:   "#5 POST API",
-			url:    `{"url": "http://ya.ru"}`,
+			url:    `{"url": "http://www.dns-shop.ru/"}`,
 			method: http.MethodPost,
 			path:   "/api/shorten",
 			want: want{
 				status: http.StatusCreated,
-				body:   `{"result":"http://localhost:8080/1b556b"}`,
+				body:   `{"result":"http://localhost:8080/8982ac"}`,
 			},
 		},
 		{
 			name:   "#6 POST API MANY",
-			url:    `[{"correlation_id": "xxx", "original_url": "http://ya.ru"},{"correlation_id": "xxx", "original_url": "http://ya.ru"},{"correlation_id": "xxx", "original_url": "http://ya.ru"}]`,
+			url:    `[{"correlation_id": "xxx", "original_url": "https://krasnodar.beeline.ru/"},{"correlation_id": "xxx", "original_url": "https://jic-energy.ru/"},{"correlation_id": "xxx", "original_url": "https://habr.com/"}]`,
 			method: http.MethodPost,
 			path:   "/api/shorten/batch",
 			want: want{
 				status: http.StatusCreated,
-				body:   `[{"correlation_id":"xxx","short_url":"http://localhost:8080/1b556b"},{"correlation_id":"xxx","short_url":"http://localhost:8080/1b556b"},{"correlation_id":"xxx","short_url":"http://localhost:8080/1b556b"}]`,
+				body:   `[{"correlation_id":"xxx","short_url":"http://localhost:8080/3617bf"},{"correlation_id":"xxx","short_url":"http://localhost:8080/419929"},{"correlation_id":"xxx","short_url":"http://localhost:8080/6c5b1c"}]`,
+			},
+		},
+		{
+			name:   "#7 POST",
+			url:    "http://ya.ru",
+			method: http.MethodPost,
+			path:   "/",
+			want: want{
+				status: http.StatusConflict,
+				body:   fmt.Sprintf("http://localhost:8080/%s", hashURL.Hash([]byte("http://ya.ru"))),
+			},
+		},
+		{
+			name:   "#5 POST API",
+			url:    `{"url": "http://ya.ru"}`,
+			method: http.MethodPost,
+			path:   "/api/shorten",
+			want: want{
+				status: http.StatusConflict,
+				body:   `{"result":"http://localhost:8080/1b556b"}`,
 			},
 		},
 	}

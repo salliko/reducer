@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/jackc/pgx/v4"
@@ -16,7 +17,11 @@ func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID strin
 	key := hashURL.Hash(URL)
 	err := db.Create(key, string(URL), userID)
 	if err != nil {
-		return "", err
+		if errors.Is(err, ErrConflict) {
+			return fmt.Sprintf("%s/%s", cfg.BaseURL, key), ErrConflict
+		} else {
+			return "", err
+		}
 	}
 	return fmt.Sprintf("%s/%s", cfg.BaseURL, key), nil
 }
@@ -58,11 +63,16 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 
 		newURL, err := InsertURL(inputURL, hashURL, db, cfg, cookie.Value)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			if errors.Is(err, ErrConflict) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		} else {
+			w.WriteHeader(http.StatusCreated)
 		}
 
-		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(newURL))
 	}
 }
@@ -120,12 +130,17 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 
 		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg, cookie.Value)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			if errors.Is(err, ErrConflict) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		} else {
+			w.WriteHeader(http.StatusCreated)
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusCreated)
 
 		res := struct {
 			Result string `json:"result"`
