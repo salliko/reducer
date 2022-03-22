@@ -95,6 +95,16 @@ func TestRouter(t *testing.T) {
 				body:   `{"result":"http://localhost:8080/1b556b"}`,
 			},
 		},
+		{
+			name:   "#6 POST API MANY",
+			url:    `[{"correlation_id": "xxx", "original_url": "http://ya.ru"},{"correlation_id": "xxx", "original_url": "http://ya.ru"},{"correlation_id": "xxx", "original_url": "http://ya.ru"}]`,
+			method: http.MethodPost,
+			path:   "/api/shorten/batch",
+			want: want{
+				status: http.StatusCreated,
+				body:   `[{"correlation_id":"xxx","short_url":"http://localhost:8080/1b556b"},{"correlation_id":"xxx","short_url":"http://localhost:8080/1b556b"},{"correlation_id":"xxx","short_url":"http://localhost:8080/1b556b"}]`,
+			},
+		},
 	}
 
 	r := NewRouter(cfg)

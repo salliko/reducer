@@ -48,6 +48,7 @@ func NewRouter(cfg Config) chi.Router {
 	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db, cfg))
 	r.Get("/api/user/urls", GetAllShortenURLS(db, cfg))
 	r.Get("/ping", Ping(cfg))
+	r.Post("/api/shorten/batch", GenerateManyShortenJSONURL(hashURL, db, cfg))
 
 	return r
 }
