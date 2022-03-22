@@ -40,6 +40,7 @@ func TestRouter(t *testing.T) {
 		status   int
 		location string
 		body     string
+		header   string
 	}
 
 	tests := []struct {
@@ -95,6 +96,7 @@ func TestRouter(t *testing.T) {
 			want: want{
 				status: http.StatusCreated,
 				body:   `{"result":"http://localhost:8080/8982ac"}`,
+				header: `application/json; charset=UTF-8`,
 			},
 		},
 		{
@@ -118,7 +120,7 @@ func TestRouter(t *testing.T) {
 			},
 		},
 		{
-			name:   "#5 POST API",
+			name:   "#8 POST API",
 			url:    `{"url": "http://ya.ru"}`,
 			method: http.MethodPost,
 			path:   "/api/shorten",
@@ -145,6 +147,9 @@ func TestRouter(t *testing.T) {
 			}
 			if tt.want.location != "" {
 				assert.Equal(t, tt.want.location, resp.Header.Get("Location"))
+			}
+			if tt.want.header != "" {
+				assert.Equal(t, tt.want.header, resp.Header.Get("Content-Type"))
 			}
 		})
 	}

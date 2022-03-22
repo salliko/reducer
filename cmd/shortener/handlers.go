@@ -131,16 +131,16 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg, cookie.Value)
 		if err != nil {
 			if errors.Is(err, ErrConflict) {
+				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 				w.WriteHeader(http.StatusConflict)
 			} else {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 		} else {
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusCreated)
 		}
-
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 		res := struct {
 			Result string `json:"result"`
