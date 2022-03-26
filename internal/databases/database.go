@@ -18,6 +18,7 @@ type Database interface {
 	Select(key string) (string, error)
 	SelectAll(string) ([]URL, error)
 	Close()
+	Ping() error
 }
 
 type URL struct {
@@ -55,6 +56,10 @@ func NewMapDatabase() *MapDatabase {
 
 func (m *MapDatabase) Close() {
 	// Заглушка
+}
+
+func (m *MapDatabase) Ping() error {
+	return nil
 }
 
 func (m *MapDatabase) Create(key, value, userID string) error {
@@ -99,6 +104,10 @@ func NewFileDatabase(fileName string) (*FileDatabase, error) {
 
 func (f *FileDatabase) Close() {
 	// Заглушка
+}
+
+func (f *FileDatabase) Ping() error {
+	return nil
 }
 
 func (f *FileDatabase) sync() error {
@@ -191,6 +200,14 @@ func NewPostgresqlDatabase(cfg config.Config) (*PostgresqlDatabase, error) {
 
 func (p *PostgresqlDatabase) Close() {
 	p.conn.Close()
+}
+
+func (p *PostgresqlDatabase) Ping() error {
+	err := p.conn.Ping(context.Background())
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *PostgresqlDatabase) Create(key, value, userID string) error {

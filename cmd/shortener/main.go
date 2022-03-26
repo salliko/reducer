@@ -24,7 +24,7 @@ func NewRouter(cfg config.Config, db databases.Database) chi.Router {
 	r.Get("/{ID}", handlers.RedirectFromShortToFull(db))
 	r.Post("/api/shorten", handlers.GenerateShortenJSONURL(hashURL, db, cfg))
 	r.Get("/api/user/urls", handlers.GetAllShortenURLS(db, cfg))
-	r.Get("/ping", handlers.Ping(cfg))
+	r.Get("/ping", handlers.Ping(db))
 	r.Post("/api/shorten/batch", handlers.GenerateManyShortenJSONURL(hashURL, db, cfg))
 
 	return r

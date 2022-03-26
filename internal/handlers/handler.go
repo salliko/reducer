@@ -2,12 +2,10 @@ package handlers
 
 import (
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-chi/chi"
-	"github.com/jackc/pgx/v4"
 	"github.com/salliko/reducer/config"
 	"github.com/salliko/reducer/internal/databases"
 	"github.com/salliko/reducer/internal/datahashes"
@@ -201,16 +199,9 @@ func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFun
 	}
 }
 
-func Ping(cfg config.Config) http.HandlerFunc {
+func Ping(db databases.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		conn, err := pgx.Connect(context.Background(), cfg.DatabaseDSN)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		defer conn.Close(context.Background())
-
-		err = conn.Ping(context.Background())
+		err := db.Ping()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

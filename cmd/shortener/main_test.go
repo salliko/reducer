@@ -152,6 +152,14 @@ func TestRouter(t *testing.T) {
 				body:   `{"result":"http://localhost:8080/1b556b"}`,
 			},
 		},
+		{
+			name:   "#9 PING",
+			method: http.MethodGet,
+			path:   "/ping",
+			want: want{
+				status: http.StatusOK,
+			},
+		},
 	}
 
 	r := NewRouter(cfg, db)
