@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"github.com/salliko/reducer/internal/datahashes"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -46,7 +45,8 @@ func CookieMiddleware(next http.Handler) http.Handler {
 		if _, err := r.Cookie("user_id"); err != nil {
 			value, err := datahashes.RandBytes(10)
 			if err != nil {
-				log.Println("Error: ", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 			newCookie := &http.Cookie{
 				Name:     "user_id",
