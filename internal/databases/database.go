@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/salliko/reducer/config"
-	"log"
 	"os"
 )
 
@@ -17,7 +16,7 @@ var ErrConflict = errors.New(`conflict`)
 type Database interface {
 	Create(key, value, userID string) error
 	Select(key string) (string, error)
-	SelectAll(string) []URL
+	SelectAll(string) ([]URL, error)
 	Close()
 }
 
@@ -74,14 +73,14 @@ func (m *MapDatabase) Select(key string) (string, error) {
 	return original, nil
 }
 
-func (m *MapDatabase) SelectAll(userID string) []URL {
+func (m *MapDatabase) SelectAll(userID string) ([]URL, error) {
 	var data []URL
 	for _, val := range m.db {
 		if val.UserID == userID {
 			data = append(data, val)
 		}
 	}
-	return data
+	return data, nil
 }
 
 type FileDatabase struct {
@@ -161,14 +160,14 @@ func (f *FileDatabase) Select(key string) (string, error) {
 
 }
 
-func (f *FileDatabase) SelectAll(userID string) []URL {
+func (f *FileDatabase) SelectAll(userID string) ([]URL, error) {
 	var data []URL
 	for _, val := range f.db {
 		if val.UserID == userID {
 			data = append(data, val)
 		}
 	}
-	return data
+	return data, nil
 }
 
 type PostgresqlDatabase struct {
@@ -223,15 +222,15 @@ func (p *PostgresqlDatabase) Select(key string) (string, error) {
 	return original, nil
 }
 
-func (p *PostgresqlDatabase) SelectAll(userID string) []URL {
+func (p *PostgresqlDatabase) SelectAll(userID string) ([]URL, error) {
 	var data []URL
 	rows, _ := p.conn.Query(context.Background(), selectAllUserRows, userID)
 	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&data)
 		if err != nil {
-			log.Println(err.Error())
+			return nil, err
 		}
 	}
-	return data
+	return data, nil
 }

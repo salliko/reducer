@@ -176,7 +176,11 @@ func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFun
 			return
 		}
 
-		allRows := db.SelectAll(cookie.Value)
+		allRows, err := db.SelectAll(cookie.Value)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if len(allRows) == 0 {
 			http.Error(w, "No Content", http.StatusNoContent)
 			return
