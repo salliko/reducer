@@ -214,18 +214,9 @@ func Ping(db databases.Database) http.HandlerFunc {
 
 func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		type inputValue struct {
-			CorrelationID string `json:"correlation_id"`
-			OriginalURL   string `json:"original_url"`
-		}
 
-		type outputValue struct {
-			CorrelationID string `json:"correlation_id"`
-			ShortURL      string `json:"short_url"`
-		}
-
-		var inputValues []inputValue
-		var outputValues []outputValue
+		var inputValues []databases.InputURL
+		var outputValues []databases.OutputURL
 
 		var reader io.Reader
 
@@ -253,17 +244,23 @@ func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database
 		}
 
 		for _, value := range inputValues {
-			if _, err := url.ParseRequestURI(value.OriginalURL); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			newURL, err := InsertURL([]byte(value.OriginalURL), hashURL, db, cfg, cookie.Value)
+			key := fmt.Sprintf("%s/%s", cfg.BaseURL, hashURL.Hash([]byte(value.OriginalURL)))
+			err := db.CreateMany(databases.URL{
+				Hash:     key,
+				Original: value.OriginalURL,
+				UserID:   cookie.Value,
+			})
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			outputValues = append(outputValues, outputValue{CorrelationID: value.CorrelationID, ShortURL: newURL})
+			outputValues = append(outputValues, databases.OutputURL{ShortURL: key, CorrelationID: value.CorrelationID})
+		}
+
+		err = db.Flush()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")

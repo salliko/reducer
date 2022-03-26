@@ -19,12 +19,24 @@ type Database interface {
 	SelectAll(string) ([]URL, error)
 	Close()
 	Ping() error
+	CreateMany(URL) error
+	Flush() error
 }
 
 type URL struct {
 	Hash     string `json:"hash"`
 	Original string `json:"original"`
 	UserID   string `json:"user_id"`
+}
+
+type InputURL struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type OutputURL struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
 }
 
 func hasKey(key string, db []URL) bool {
@@ -59,6 +71,14 @@ func (m *MapDatabase) Close() {
 }
 
 func (m *MapDatabase) Ping() error {
+	return nil
+}
+
+func (m *MapDatabase) CreateMany(v URL) error {
+	return nil
+}
+
+func (m *MapDatabase) Flush() error {
 	return nil
 }
 
@@ -107,6 +127,14 @@ func (f *FileDatabase) Close() {
 }
 
 func (f *FileDatabase) Ping() error {
+	return nil
+}
+
+func (f *FileDatabase) CreateMany(v URL) error {
+	return nil
+}
+
+func (f *FileDatabase) Flush() error {
 	return nil
 }
 
@@ -180,7 +208,8 @@ func (f *FileDatabase) SelectAll(userID string) ([]URL, error) {
 }
 
 type PostgresqlDatabase struct {
-	conn *pgxpool.Pool
+	conn   *pgxpool.Pool
+	buffer []URL
 }
 
 func NewPostgresqlDatabase(cfg config.Config) (*PostgresqlDatabase, error) {
@@ -195,7 +224,7 @@ func NewPostgresqlDatabase(cfg config.Config) (*PostgresqlDatabase, error) {
 	}
 	defer rows.Close()
 
-	return &PostgresqlDatabase{conn: conn}, nil
+	return &PostgresqlDatabase{conn: conn, buffer: make([]URL, 0, 500)}, nil
 }
 
 func (p *PostgresqlDatabase) Close() {
@@ -227,6 +256,50 @@ func (p *PostgresqlDatabase) Create(key, value, userID string) error {
 		return err
 	}
 	defer rows.Close()
+	return nil
+}
+
+func (p *PostgresqlDatabase) CreateMany(value URL) error {
+	p.buffer = append(p.buffer, value)
+
+	if cap(p.buffer) == len(p.buffer) {
+		err := p.Flush()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *PostgresqlDatabase) Flush() error {
+	tx, err := p.conn.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(context.Background())
+
+	// Запрос prepare
+	stmt, err := tx.Prepare(context.Background(), "insert", insert)
+	if err != nil {
+		return err
+	}
+	// Закрываем запрос
+	for _, v := range p.buffer {
+		if _, err := tx.Exec(context.Background(), stmt.SQL, v.Hash, v.Original, v.UserID); err != nil {
+			if err = tx.Rollback(context.Background()); err != nil {
+				return err
+			}
+			return err
+		}
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return err
+	}
+
+	p.buffer = p.buffer[:0]
+
 	return nil
 }
 
