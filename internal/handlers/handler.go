@@ -133,6 +133,8 @@ func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cf
 			return
 		}
 
+		log.Println(w.Header())
+
 		w.Write(data)
 	}
 }
