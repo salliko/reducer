@@ -244,7 +244,7 @@ func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database
 		}
 
 		for _, value := range inputValues {
-			key := fmt.Sprintf("%s/%s", cfg.BaseURL, hashURL.Hash([]byte(value.OriginalURL)))
+			key := hashURL.Hash([]byte(value.OriginalURL))
 			err := db.CreateMany(databases.URL{
 				Hash:     key,
 				Original: value.OriginalURL,
@@ -254,7 +254,10 @@ func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			outputValues = append(outputValues, databases.OutputURL{ShortURL: key, CorrelationID: value.CorrelationID})
+			outputValues = append(outputValues, databases.OutputURL{
+				ShortURL:      fmt.Sprintf("%s/%s", cfg.BaseURL, hashURL.Hash([]byte(value.OriginalURL))),
+				CorrelationID: value.CorrelationID,
+			})
 		}
 
 		err = db.Flush()
