@@ -146,6 +146,7 @@ func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFun
 
 		cookie, err := r.Cookie("user_id")
 		if err != nil {
+			log.Println(err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -154,12 +155,14 @@ func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFun
 
 		allRows, err := db.SelectAll(cookie.Value)
 		if err != nil {
+			log.Println(err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		if len(allRows) == 0 {
+			log.Println("No rows")
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusNoContent)
 			http.Error(w, "No Content", http.StatusNoContent)
@@ -173,6 +176,7 @@ func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFun
 
 		data, err := json.Marshal(rows)
 		if err != nil {
+			log.Println(err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			http.Error(w, err.Error(), http.StatusBadRequest)
