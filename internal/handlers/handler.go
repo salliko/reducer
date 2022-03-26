@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,21 +29,7 @@ func InsertURL(URL []byte, hashURL datahashes.Hasing, db databases.Database, cfg
 func GenerateShortURL(hashURL datahashes.Hasing, db databases.Database, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		var reader io.Reader
-
-		if r.Header.Get(`Content-Encoding`) == `gzip` {
-			gz, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			reader = gz
-			defer gz.Close()
-		} else {
-			reader = r.Body
-		}
-
-		inputURL, err := io.ReadAll(reader)
+		inputURL, err := io.ReadAll(r.Body)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -99,21 +84,7 @@ func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cf
 			URL string `json:"url"`
 		}
 
-		var reader io.Reader
-
-		if r.Header.Get(`Content-Encoding`) == `gzip` {
-			gz, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			reader = gz
-			defer gz.Close()
-		} else {
-			reader = r.Body
-		}
-
-		if err := json.NewDecoder(reader).Decode(&v); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -218,21 +189,7 @@ func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database
 		var inputValues []databases.InputURL
 		var outputValues []databases.OutputURL
 
-		var reader io.Reader
-
-		if r.Header.Get(`Content-Encoding`) == `gzip` {
-			gz, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			reader = gz
-			defer gz.Close()
-		} else {
-			reader = r.Body
-		}
-
-		if err := json.NewDecoder(reader).Decode(&inputValues); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&inputValues); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

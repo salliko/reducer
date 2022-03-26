@@ -18,7 +18,8 @@ func NewRouter(cfg config.Config, db databases.Database) chi.Router {
 
 	r.Use(middleware.Logger)
 	r.Use(middlewares.CookieMiddleware)
-	r.Use(middlewares.GzipMiddleware)
+	r.Use(middlewares.GzipRequestMiddleware)
+	r.Use(middlewares.GzipResponseMiddleware)
 
 	r.Post("/", handlers.GenerateShortURL(hashURL, db, cfg))
 	r.Get("/{ID}", handlers.RedirectFromShortToFull(db))
