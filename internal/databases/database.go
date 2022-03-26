@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/salliko/reducer/config"
 	"log"
 	"os"
@@ -17,6 +18,7 @@ type Database interface {
 	Create(key, value, userID string) error
 	Select(key string) (string, error)
 	SelectAll(string) []URL
+	Close()
 }
 
 type URL struct {
@@ -50,6 +52,10 @@ type MapDatabase struct {
 
 func NewMapDatabase() *MapDatabase {
 	return &MapDatabase{}
+}
+
+func (m *MapDatabase) Close() {
+	// Заглушка
 }
 
 func (m *MapDatabase) Create(key, value, userID string) error {
@@ -90,6 +96,10 @@ func NewFileDatabase(fileName string) (*FileDatabase, error) {
 		return nil, err
 	}
 	return fileDatabase, nil
+}
+
+func (f *FileDatabase) Close() {
+	// Заглушка
 }
 
 func (f *FileDatabase) sync() error {
@@ -162,31 +172,29 @@ func (f *FileDatabase) SelectAll(userID string) []URL {
 }
 
 type PostgresqlDatabase struct {
-	cfg config.Config
+	conn *pgxpool.Pool
 }
 
 func NewPostgresqlDatabase(cfg config.Config) (*PostgresqlDatabase, error) {
-	conn, err := pgx.Connect(context.Background(), cfg.DatabaseDSN)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close(context.Background())
-
-	_, err = conn.Query(context.Background(), createTable)
+	conn, err := pgxpool.Connect(context.Background(), cfg.DatabaseDSN)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PostgresqlDatabase{cfg: cfg}, nil
+	rows, err := conn.Query(context.Background(), createTable)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return &PostgresqlDatabase{conn: conn}, nil
+}
+
+func (p *PostgresqlDatabase) Close() {
+	p.conn.Close()
 }
 
 func (p *PostgresqlDatabase) Create(key, value, userID string) error {
-	conn, err := pgx.Connect(context.Background(), p.cfg.DatabaseDSN)
-	if err != nil {
-		return err
-	}
-	defer conn.Close(context.Background())
-
 	original, err := p.Select(key)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -198,22 +206,17 @@ func (p *PostgresqlDatabase) Create(key, value, userID string) error {
 		return ErrConflict
 	}
 
-	_, err = conn.Query(context.Background(), insert, key, value, userID)
+	rows, err := p.conn.Query(context.Background(), insert, key, value, userID)
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 	return nil
 }
 
 func (p *PostgresqlDatabase) Select(key string) (string, error) {
-	conn, err := pgx.Connect(context.Background(), p.cfg.DatabaseDSN)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close(context.Background())
-
 	var original string
-	err = conn.QueryRow(context.Background(), selectOriginal, key).Scan(&original)
+	err := p.conn.QueryRow(context.Background(), selectOriginal, key).Scan(&original)
 	if err != nil {
 		return "", err
 	}
@@ -221,14 +224,9 @@ func (p *PostgresqlDatabase) Select(key string) (string, error) {
 }
 
 func (p *PostgresqlDatabase) SelectAll(userID string) []URL {
-	conn, err := pgx.Connect(context.Background(), p.cfg.DatabaseDSN)
-	if err != nil {
-		log.Println(err.Error())
-	}
-	defer conn.Close(context.Background())
-
 	var data []URL
-	rows, _ := conn.Query(context.Background(), selectAllUserRows, userID)
+	rows, _ := p.conn.Query(context.Background(), selectAllUserRows, userID)
+	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&data)
 		if err != nil {

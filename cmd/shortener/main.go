@@ -12,23 +12,8 @@ import (
 	"net/http"
 )
 
-func NewRouter(cfg config.Config) chi.Router {
+func NewRouter(cfg config.Config, db databases.Database) chi.Router {
 	r := chi.NewRouter()
-	var db databases.Database
-	var err error
-	if cfg.DatabaseDSN != "" {
-		db, err = databases.NewPostgresqlDatabase(cfg)
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else if cfg.FileStoragePath != "" {
-		db, err = databases.NewFileDatabase(cfg.FileStoragePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		db = databases.NewMapDatabase()
-	}
 	hashURL := &datahashes.Md5HashData{}
 
 	r.Use(middleware.Logger)
@@ -51,6 +36,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := NewRouter(cfg)
+	var db databases.Database
+	var err error
+	if cfg.DatabaseDSN != "" {
+		db, err = databases.NewPostgresqlDatabase(cfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+	} else if cfg.FileStoragePath != "" {
+		db, err = databases.NewFileDatabase(cfg.FileStoragePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+	} else {
+		db = databases.NewMapDatabase()
+		defer db.Close()
+	}
+
+	r := NewRouter(cfg, db)
 	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
 }
