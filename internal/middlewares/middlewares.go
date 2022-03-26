@@ -1,7 +1,8 @@
-package main
+package middlewares
 
 import (
 	"compress/gzip"
+	"github.com/salliko/reducer/internal/datahashes"
 	"io"
 	"log"
 	"net/http"
@@ -43,7 +44,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 func CookieMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, err := r.Cookie("user_id"); err != nil {
-			value, err := RandBytes(10)
+			value, err := datahashes.RandBytes(10)
 			if err != nil {
 				log.Println("Error: ", err)
 			}

@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"compress/gzip"
@@ -8,17 +8,20 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/jackc/pgx/v4"
+	"github.com/salliko/reducer/config"
+	"github.com/salliko/reducer/internal/databases"
+	"github.com/salliko/reducer/internal/datahashes"
 	"io"
 	"net/http"
 	"net/url"
 )
 
-func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID string) (string, error) {
+func InsertURL(URL []byte, hashURL datahashes.Hasing, db databases.Database, cfg config.Config, userID string) (string, error) {
 	key := hashURL.Hash(URL)
 	err := db.Create(key, string(URL), userID)
 	if err != nil {
-		if errors.Is(err, ErrConflict) {
-			return fmt.Sprintf("%s/%s", cfg.BaseURL, key), ErrConflict
+		if errors.Is(err, databases.ErrConflict) {
+			return fmt.Sprintf("%s/%s", cfg.BaseURL, key), databases.ErrConflict
 		} else {
 			return "", err
 		}
@@ -26,7 +29,7 @@ func InsertURL(URL []byte, hashURL Hasing, db Database, cfg Config, userID strin
 	return fmt.Sprintf("%s/%s", cfg.BaseURL, key), nil
 }
 
-func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
+func GenerateShortURL(hashURL datahashes.Hasing, db databases.Database, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var reader io.Reader
@@ -63,7 +66,7 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 
 		newURL, err := InsertURL(inputURL, hashURL, db, cfg, cookie.Value)
 		if err != nil {
-			if errors.Is(err, ErrConflict) {
+			if errors.Is(err, databases.ErrConflict) {
 				w.WriteHeader(http.StatusConflict)
 			} else {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -77,7 +80,7 @@ func GenerateShortURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc 
 	}
 }
 
-func RedirectFromShortToFull(db Database) http.HandlerFunc {
+func RedirectFromShortToFull(db databases.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "ID")
 
@@ -92,7 +95,7 @@ func RedirectFromShortToFull(db Database) http.HandlerFunc {
 	}
 }
 
-func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
+func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var v struct {
 			URL string `json:"url"`
@@ -130,7 +133,7 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 
 		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg, cookie.Value)
 		if err != nil {
-			if errors.Is(err, ErrConflict) {
+			if errors.Is(err, databases.ErrConflict) {
 				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 				w.WriteHeader(http.StatusConflict)
 			} else {
@@ -158,7 +161,7 @@ func GenerateShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.Handle
 	}
 }
 
-func GetAllShortenURLS(db Database, cfg Config) http.HandlerFunc {
+func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type rowData struct {
 			ShortURL    string `json:"short_url"`
@@ -194,7 +197,7 @@ func GetAllShortenURLS(db Database, cfg Config) http.HandlerFunc {
 	}
 }
 
-func Ping(cfg Config) http.HandlerFunc {
+func Ping(cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := pgx.Connect(context.Background(), cfg.DatabaseDSN)
 		if err != nil {
@@ -214,7 +217,7 @@ func Ping(cfg Config) http.HandlerFunc {
 	}
 }
 
-func GenerateManyShortenJSONURL(hashURL Hasing, db Database, cfg Config) http.HandlerFunc {
+func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type inputValue struct {
 			CorrelationID string `json:"correlation_id"`

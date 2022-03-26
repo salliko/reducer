@@ -1,71 +1,55 @@
 package main
 
 import (
-	"flag"
-	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/salliko/reducer/config"
+	"github.com/salliko/reducer/internal/databases"
+	"github.com/salliko/reducer/internal/datahashes"
+	"github.com/salliko/reducer/internal/handlers"
+	"github.com/salliko/reducer/internal/middlewares"
 	"log"
 	"net/http"
 )
 
-type Database interface {
-	Create(key, value, userID string) error
-	Select(key string) (string, error)
-	SelectAll(string) map[string]string
-}
-
-type Config struct {
-	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
-	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
-	DatabaseDSN     string `env:"DATABASE_DSN"`
-}
-
-func NewRouter(cfg Config) chi.Router {
+func NewRouter(cfg config.Config) chi.Router {
 	r := chi.NewRouter()
-	var db Database
+	var db databases.Database
 	var err error
 	if cfg.DatabaseDSN != "" {
-		db, err = NewPostgresqlDatabase(cfg)
+		db, err = databases.NewPostgresqlDatabase(cfg)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else if cfg.FileStoragePath != "" {
-		db, err = NewFileDatabase(cfg.FileStoragePath)
+		db, err = databases.NewFileDatabase(cfg.FileStoragePath)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		db = NewMapDatabase()
+		db = databases.NewMapDatabase()
 	}
-	hashURL := &Md5HashData{}
+	hashURL := &datahashes.Md5HashData{}
 
-	r.Use(CookieMiddleware)
-	r.Use(GzipMiddleware)
+	r.Use(middleware.Logger)
+	r.Use(middlewares.CookieMiddleware)
+	r.Use(middlewares.GzipMiddleware)
 
-	r.Post("/", GenerateShortURL(hashURL, db, cfg))
-	r.Get("/{ID}", RedirectFromShortToFull(db))
-	r.Post("/api/shorten", GenerateShortenJSONURL(hashURL, db, cfg))
-	r.Get("/api/user/urls", GetAllShortenURLS(db, cfg))
-	r.Get("/ping", Ping(cfg))
-	r.Post("/api/shorten/batch", GenerateManyShortenJSONURL(hashURL, db, cfg))
+	r.Post("/", handlers.GenerateShortURL(hashURL, db, cfg))
+	r.Get("/{ID}", handlers.RedirectFromShortToFull(db))
+	r.Post("/api/shorten", handlers.GenerateShortenJSONURL(hashURL, db, cfg))
+	r.Get("/api/user/urls", handlers.GetAllShortenURLS(db, cfg))
+	r.Get("/ping", handlers.Ping(cfg))
+	r.Post("/api/shorten/batch", handlers.GenerateManyShortenJSONURL(hashURL, db, cfg))
 
 	return r
 }
 
 func main() {
-	var cfg Config
-	err := env.Parse(&cfg)
-	if err != nil {
+	var cfg config.Config
+	if err := cfg.Parse(); err != nil {
 		log.Fatal(err)
 	}
-
-	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "server address")
-	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "base url")
-	flag.StringVar(&cfg.FileStoragePath, "f", cfg.FileStoragePath, "file storage path")
-	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "database dsn")
-
-	flag.Parse()
 
 	r := NewRouter(cfg)
 	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))

@@ -1,4 +1,4 @@
-package main
+package databases
 
 import (
 	"context"
@@ -6,11 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4"
+	"github.com/salliko/reducer/config"
 	"log"
 	"os"
 )
 
 var ErrConflict = errors.New(`conflict`)
+
+type Database interface {
+	Create(key, value, userID string) error
+	Select(key string) (string, error)
+	SelectAll(string) map[string]string
+}
 
 type MapDatabase struct {
 	db map[string]map[string]string
@@ -154,10 +161,10 @@ func (f *FileDatabase) SelectAll(userID string) map[string]string {
 }
 
 type PostgresqlDatabase struct {
-	cfg Config
+	cfg config.Config
 }
 
-func NewPostgresqlDatabase(cfg Config) (*PostgresqlDatabase, error) {
+func NewPostgresqlDatabase(cfg config.Config) (*PostgresqlDatabase, error) {
 	conn, err := pgx.Connect(context.Background(), cfg.DatabaseDSN)
 	if err != nil {
 		return nil, err

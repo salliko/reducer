@@ -1,4 +1,4 @@
-package main
+package datahashes
 
 import (
 	"crypto/md5"

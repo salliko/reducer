@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/salliko/reducer/config"
+	"github.com/salliko/reducer/internal/datahashes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -27,9 +29,9 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 }
 
 func TestRouter(t *testing.T) {
-	var hashURL Hasing = &Md5HashData{}
+	var hashURL datahashes.Hasing = &datahashes.Md5HashData{}
 
-	cfg := Config{
+	cfg := config.Config{
 		ServerAddress: "localhost:8080",
 		BaseURL:       "http://localhost:8080",
 		//FileStoragePath: "C:/Users/snup4/Learn/reducer/test_bd.txt",
