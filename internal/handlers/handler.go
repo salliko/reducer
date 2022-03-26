@@ -9,6 +9,7 @@ import (
 	"github.com/salliko/reducer/internal/databases"
 	"github.com/salliko/reducer/internal/datahashes"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 )
@@ -85,17 +86,20 @@ func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cf
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if _, err := url.ParseRequestURI(v.URL); err != nil {
+			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		cookie, err := r.Cookie("user_id")
 		if err != nil {
+			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -103,9 +107,11 @@ func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cf
 		newURL, err := InsertURL([]byte(v.URL), hashURL, db, cfg, cookie.Value)
 		if err != nil {
 			if errors.Is(err, databases.ErrConflict) {
+				log.Println(err.Error())
 				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 				w.WriteHeader(http.StatusConflict)
 			} else {
+				log.Println(err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -122,6 +128,7 @@ func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cf
 
 		data, err := json.Marshal(res)
 		if err != nil {
+			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
