@@ -314,13 +314,18 @@ func (p *PostgresqlDatabase) Select(key string) (string, error) {
 
 func (p *PostgresqlDatabase) SelectAll(userID string) ([]URL, error) {
 	var data []URL
-	rows, _ := p.conn.Query(context.Background(), selectAllUserRows, userID)
+	rows, err := p.conn.Query(context.Background(), selectAllUserRows, userID)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	for rows.Next() {
-		err := rows.Scan(&data)
+		var u URL
+		err := rows.Scan(&u.Hash, &u.Original, &u.UserID)
 		if err != nil {
 			return nil, err
 		}
+		data = append(data, u)
 	}
 	return data, nil
 }

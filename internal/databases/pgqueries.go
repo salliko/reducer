@@ -25,7 +25,7 @@ var (
 
 	selectAllUserRows = `
 		select 
-			hash, original
+			hash, original, user_id
 		from urls
 		where user_id = $1
 	`
