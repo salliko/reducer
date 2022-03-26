@@ -16,41 +16,63 @@ var ErrConflict = errors.New(`conflict`)
 type Database interface {
 	Create(key, value, userID string) error
 	Select(key string) (string, error)
-	SelectAll(string) map[string]string
+	SelectAll(string) []URL
+}
+
+type URL struct {
+	Hash     string `json:"hash"`
+	Original string `json:"original"`
+	UserID   string `json:"user_id"`
+}
+
+func hasKey(key string, db []URL) bool {
+	for _, row := range db {
+		if row.Hash == key {
+			return true
+		}
+	}
+	return false
+}
+
+func getOriginal(key string, db []URL) (string, error) {
+	for _, row := range db {
+		if row.Hash == key {
+			return row.Original, nil
+		}
+	}
+
+	return "", fmt.Errorf("key %s not found", key)
 }
 
 type MapDatabase struct {
-	db map[string]map[string]string
+	db []URL
 }
 
 func NewMapDatabase() *MapDatabase {
-	return &MapDatabase{db: make(map[string]map[string]string)}
+	return &MapDatabase{}
 }
 
 func (m *MapDatabase) Create(key, value, userID string) error {
-	if _, ok := m.db[key]; ok {
+	if hasKey(key, m.db) {
 		return ErrConflict
 	}
-	m.db[key] = map[string]string{
-		"URL":    value,
-		"userID": userID,
-	}
+	m.db = append(m.db, URL{Hash: key, Original: value, UserID: userID})
 	return nil
 }
 
 func (m *MapDatabase) Select(key string) (string, error) {
-	if value, ok := m.db[key]; ok {
-		return value["URL"], nil
-	} else {
-		return "", fmt.Errorf("key %s not found", key)
+	original, err := getOriginal(key, m.db)
+	if err != nil {
+		return original, err
 	}
+	return original, nil
 }
 
-func (m *MapDatabase) SelectAll(userID string) map[string]string {
-	data := make(map[string]string)
-	for key, val := range m.db {
-		if val["userID"] == userID {
-			data[key] = val["URL"]
+func (m *MapDatabase) SelectAll(userID string) []URL {
+	var data []URL
+	for _, val := range m.db {
+		if val.UserID == userID {
+			data = append(data, val)
 		}
 	}
 	return data
@@ -58,21 +80,11 @@ func (m *MapDatabase) SelectAll(userID string) map[string]string {
 
 type FileDatabase struct {
 	path string
-	db   RowsFileDatabase
-}
-
-type RowFileDatabase struct {
-	Hash   string `json:"hash"`
-	URL    string `json:"url"`
-	UserID string `json:"user_id"`
-}
-
-type RowsFileDatabase struct {
-	Rows []RowFileDatabase `json:"rows"`
+	db   []URL
 }
 
 func NewFileDatabase(fileName string) (*FileDatabase, error) {
-	fileDatabase := &FileDatabase{path: fileName, db: RowsFileDatabase{}}
+	fileDatabase := &FileDatabase{path: fileName}
 	err := fileDatabase.sync()
 	if err != nil {
 		return nil, err
@@ -103,17 +115,8 @@ func (f *FileDatabase) sync() error {
 	return nil
 }
 
-func (f *FileDatabase) hasKey(key string) bool {
-	for _, rowFile := range f.db.Rows {
-		if rowFile.Hash == key {
-			return true
-		}
-	}
-	return false
-}
-
 func (f *FileDatabase) Create(key, value, userID string) error {
-	if f.hasKey(key) {
+	if hasKey(key, f.db) {
 		return ErrConflict
 	}
 
@@ -124,7 +127,7 @@ func (f *FileDatabase) Create(key, value, userID string) error {
 
 	defer file.Close()
 
-	f.db.Rows = append(f.db.Rows, RowFileDatabase{Hash: key, URL: value, UserID: userID})
+	f.db = append(f.db, URL{Hash: key, Original: value, UserID: userID})
 
 	err = json.NewEncoder(file).Encode(f.db)
 	if err != nil {
@@ -140,24 +143,22 @@ func (f *FileDatabase) Select(key string) (string, error) {
 		return "", err
 	}
 
-	for _, rowVal := range f.db.Rows {
-		if rowVal.Hash == key {
-			return rowVal.URL, nil
-		}
+	original, err := getOriginal(key, f.db)
+	if err != nil {
+		return original, err
 	}
-
-	return "", fmt.Errorf("key %s not found", key)
+	return original, nil
 
 }
 
-func (f *FileDatabase) SelectAll(userID string) map[string]string {
-	m := make(map[string]string)
-	for _, userRow := range f.db.Rows {
-		if userRow.UserID == userID {
-			m[userRow.Hash] = userRow.URL
+func (f *FileDatabase) SelectAll(userID string) []URL {
+	var data []URL
+	for _, val := range f.db {
+		if val.UserID == userID {
+			data = append(data, val)
 		}
 	}
-	return m
+	return data
 }
 
 type PostgresqlDatabase struct {
@@ -219,23 +220,20 @@ func (p *PostgresqlDatabase) Select(key string) (string, error) {
 	return original, nil
 }
 
-func (p *PostgresqlDatabase) SelectAll(userID string) map[string]string {
+func (p *PostgresqlDatabase) SelectAll(userID string) []URL {
 	conn, err := pgx.Connect(context.Background(), p.cfg.DatabaseDSN)
 	if err != nil {
 		log.Println(err.Error())
 	}
 	defer conn.Close(context.Background())
 
-	m := make(map[string]string)
+	var data []URL
 	rows, _ := conn.Query(context.Background(), selectAllUserRows, userID)
 	for rows.Next() {
-		var hash string
-		var original string
-		err := rows.Scan(&hash, &original)
+		err := rows.Scan(&data)
 		if err != nil {
 			log.Println(err.Error())
 		}
-		m[hash] = original
 	}
-	return m
+	return data
 }

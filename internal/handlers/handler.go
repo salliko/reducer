@@ -182,9 +182,9 @@ func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFun
 			return
 		}
 
-		for key, value := range allRows {
-			shortURL := fmt.Sprintf("%s/%s", cfg.BaseURL, key)
-			rows = append(rows, rowData{ShortURL: shortURL, OriginalURL: value})
+		for _, value := range allRows {
+			shortURL := fmt.Sprintf("%s/%s", cfg.BaseURL, value.Hash)
+			rows = append(rows, rowData{ShortURL: shortURL, OriginalURL: value.Original})
 		}
 
 		data, err := json.Marshal(rows)
