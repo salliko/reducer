@@ -86,20 +86,17 @@ func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cf
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
-			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if _, err := url.ParseRequestURI(v.URL); err != nil {
-			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		cookie, err := r.Cookie("user_id")
 		if err != nil {
-			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -111,7 +108,6 @@ func GenerateShortenJSONURL(hashURL datahashes.Hasing, db databases.Database, cf
 				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 				w.WriteHeader(http.StatusConflict)
 			} else {
-				log.Println(err.Error())
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -175,6 +171,7 @@ func GetAllShortenURLS(db databases.Database, cfg config.Config) http.HandlerFun
 			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
 		w.Write(data)
 	}
 }
