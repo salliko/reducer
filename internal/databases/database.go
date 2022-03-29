@@ -337,8 +337,6 @@ func (p *PostgresqlDatabase) SelectAll(userID string) ([]URL, error) {
 }
 
 func (p *PostgresqlDatabase) Delete(key, userID string) {
-	rows, err := p.conn.Query(context.Background(), delete, key, userID)
-	if err != nil {
-	}
+	rows, _ := p.conn.Query(context.Background(), delete, key, userID)
 	defer rows.Close()
 }
