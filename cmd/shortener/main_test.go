@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -44,15 +43,15 @@ func TestRouter(t *testing.T) {
 		ServerAddress: "localhost:8080",
 		BaseURL:       "http://localhost:8080",
 		//FileStoragePath: "C:/Users/snup4/Learn/reducer/test_bd.txt",
-		DatabaseDSN: "postgres://postgres:postgres@localhost:5432/postgres",
+		//DatabaseDSN: "postgres://postgres:postgres@localhost:5432/postgres",
 	}
 
-	//db := databases.NewMapDatabase()
+	db := databases.NewMapDatabase()
 	//db, err = databases.NewFileDatabase(cfg.FileStoragePath)
-	db, err := databases.NewPostgresqlDatabase(cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
+	//db, err := databases.NewPostgresqlDatabase(cfg)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 	defer db.Close()
 
 	type want struct {
@@ -156,23 +155,23 @@ func TestRouter(t *testing.T) {
 				status: http.StatusOK,
 			},
 		},
-		{
-			name:   "#10 DELETE",
-			method: http.MethodDelete,
-			path:   "/api/user/urls",
-			url:    `["3617bf", "419929", "6c5b1c"]`,
-			want: want{
-				status: http.StatusAccepted,
-			},
-		},
-		{
-			name:   "#11 Gone",
-			method: http.MethodGet,
-			path:   fmt.Sprintf("/%s", "3617bf"),
-			want: want{
-				status: http.StatusGone,
-			},
-		},
+		//{
+		//	name:   "#10 DELETE",
+		//	method: http.MethodDelete,
+		//	path:   "/api/user/urls",
+		//	url:    `["3617bf", "419929", "6c5b1c"]`,
+		//	want: want{
+		//		status: http.StatusAccepted,
+		//	},
+		//},
+		//{
+		//	name:   "#11 Gone",
+		//	method: http.MethodGet,
+		//	path:   fmt.Sprintf("/%s", "3617bf"),
+		//	want: want{
+		//		status: http.StatusGone,
+		//	},
+		//},
 	}
 
 	r := NewRouter(cfg, db)
