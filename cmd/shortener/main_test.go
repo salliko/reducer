@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,6 +18,13 @@ import (
 func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io.Reader) *http.Response {
 	req, err := http.NewRequest(method, ts.URL+path, body)
 	require.NoError(t, err)
+
+	cookie := &http.Cookie{
+		Name:     "user_id",
+		Value:    "aZT57qJnkvCrMQ==",
+		HttpOnly: false,
+	}
+	req.AddCookie(cookie)
 
 	client := &http.Client{}
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -36,15 +44,15 @@ func TestRouter(t *testing.T) {
 		ServerAddress: "localhost:8080",
 		BaseURL:       "http://localhost:8080",
 		//FileStoragePath: "C:/Users/snup4/Learn/reducer/test_bd.txt",
-		//DatabaseDSN: "postgres://postgres:postgres@localhost:5432/postgres",
+		DatabaseDSN: "postgres://postgres:postgres@localhost:5432/postgres",
 	}
 
-	db := databases.NewMapDatabase()
+	//db := databases.NewMapDatabase()
 	//db, err = databases.NewFileDatabase(cfg.FileStoragePath)
-	//db, err := databases.NewPostgresqlDatabase(cfg)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
+	db, err := databases.NewPostgresqlDatabase(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer db.Close()
 
 	type want struct {
@@ -148,10 +156,28 @@ func TestRouter(t *testing.T) {
 				status: http.StatusOK,
 			},
 		},
+		{
+			name:   "#10 DELETE",
+			method: http.MethodDelete,
+			path:   "/api/user/urls",
+			url:    `["3617bf", "419929", "6c5b1c"]`,
+			want: want{
+				status: http.StatusAccepted,
+			},
+		},
+		{
+			name:   "#11 Gone",
+			method: http.MethodGet,
+			path:   fmt.Sprintf("/%s", "3617bf"),
+			want: want{
+				status: http.StatusGone,
+			},
+		},
 	}
 
 	r := NewRouter(cfg, db)
 	ts := httptest.NewServer(r)
+
 	defer ts.Close()
 
 	for _, tt := range tests {

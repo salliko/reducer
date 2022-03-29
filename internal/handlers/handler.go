@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 )
 
 func InsertURL(URL []byte, hashURL datahashes.Hasing, db databases.Database, cfg config.Config, userID string) (string, error) {
@@ -70,6 +71,10 @@ func RedirectFromShortToFull(db databases.Database) http.HandlerFunc {
 
 		val, err := db.Select(id)
 		if err != nil {
+			if errors.Is(err, databases.ErrGone) {
+				http.Error(w, err.Error(), http.StatusGone)
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Not found"))
 			return
@@ -247,5 +252,36 @@ func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database
 		}
 
 		w.Write(data)
+	}
+}
+
+func Delete(db databases.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var keys []string
+
+		if err := json.NewDecoder(r.Body).Decode(&keys); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		cookie, err := r.Cookie("user_id")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		wg := &sync.WaitGroup{}
+
+		for _, key := range keys {
+			wg.Add(1)
+			go func(inputKey string) {
+				defer wg.Done()
+				db.Delete(inputKey, cookie.Value)
+			}(key)
+		}
+
+		wg.Wait()
+
+		w.WriteHeader(http.StatusAccepted)
 	}
 }

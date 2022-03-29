@@ -6,7 +6,8 @@ var (
 			id serial primary key not null,
 			hash varchar(25),
 			original text,
-			user_id varchar(250)
+			user_id varchar(250),
+			is_deleted boolean default false
 		)
 	`
 
@@ -15,12 +16,8 @@ var (
 		values ($1, $2, $3)
 	`
 
-	hasValue = `
-		select original from urls where hash = $1
-	`
-
 	selectOriginal = `
-		select original from urls where hash = $1
+		select original, is_deleted from urls where hash = $1
 	`
 
 	selectAllUserRows = `
@@ -28,5 +25,11 @@ var (
 			hash, original, user_id
 		from urls
 		where user_id = $1
+	`
+
+	delete = `
+		update urls set
+			is_deleted = true
+		where hash = $1 and user_id = $2
 	`
 )

@@ -12,6 +12,7 @@ import (
 )
 
 var ErrConflict = errors.New(`conflict`)
+var ErrGone = errors.New(`Gone`)
 
 type Database interface {
 	Create(key, value, userID string) error
@@ -21,12 +22,14 @@ type Database interface {
 	Ping() error
 	CreateMany(URL) error
 	Flush() error
+	Delete(string, string)
 }
 
 type URL struct {
-	Hash     string `json:"hash"`
-	Original string `json:"original"`
-	UserID   string `json:"user_id"`
+	Hash      string `json:"hash"`
+	Original  string `json:"original"`
+	UserID    string `json:"user_id"`
+	IsDeleted bool   `json:"is_deleted"`
 }
 
 type InputURL struct {
@@ -51,6 +54,9 @@ func hasKey(key string, db []URL) bool {
 func getOriginal(key string, db []URL) (string, error) {
 	for _, row := range db {
 		if row.Hash == key {
+			if row.IsDeleted {
+				return "", ErrGone
+			}
 			return row.Original, nil
 		}
 	}
@@ -106,6 +112,14 @@ func (m *MapDatabase) SelectAll(userID string) ([]URL, error) {
 		}
 	}
 	return data, nil
+}
+
+func (m *MapDatabase) Delete(key, userID string) {
+	for _, item := range m.db {
+		if item.Hash == key && item.UserID == userID {
+			item.IsDeleted = true
+		}
+	}
 }
 
 type FileDatabase struct {
@@ -207,6 +221,8 @@ func (f *FileDatabase) SelectAll(userID string) ([]URL, error) {
 	return data, nil
 }
 
+func (f *FileDatabase) Delete(key, userID string) {}
+
 type PostgresqlDatabase struct {
 	conn   *pgxpool.Pool
 	buffer []URL
@@ -301,9 +317,13 @@ func (p *PostgresqlDatabase) Flush() error {
 
 func (p *PostgresqlDatabase) Select(key string) (string, error) {
 	var original string
-	err := p.conn.QueryRow(context.Background(), selectOriginal, key).Scan(&original)
+	var isDeleted bool
+	err := p.conn.QueryRow(context.Background(), selectOriginal, key).Scan(&original, &isDeleted)
 	if err != nil {
 		return "", err
+	}
+	if isDeleted {
+		return "", ErrGone
 	}
 	return original, nil
 }
@@ -324,4 +344,11 @@ func (p *PostgresqlDatabase) SelectAll(userID string) ([]URL, error) {
 		data = append(data, u)
 	}
 	return data, nil
+}
+
+func (p *PostgresqlDatabase) Delete(key, userID string) {
+	rows, err := p.conn.Query(context.Background(), delete, key, userID)
+	if err != nil {
+	}
+	defer rows.Close()
 }
