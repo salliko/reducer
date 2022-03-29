@@ -232,11 +232,7 @@ func (p *PostgresqlDatabase) Close() {
 }
 
 func (p *PostgresqlDatabase) Ping() error {
-	err := p.conn.Ping(context.Background())
-	if err != nil {
-		return err
-	}
-	return nil
+	return p.conn.Ping(context.Background())
 }
 
 func (p *PostgresqlDatabase) Create(key, value, userID string) error {

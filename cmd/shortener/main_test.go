@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -40,24 +39,13 @@ func TestRouter(t *testing.T) {
 		//DatabaseDSN: "postgres://postgres:postgres@localhost:5432/postgres",
 	}
 
-	var db databases.Database
-	var err error
-	if cfg.DatabaseDSN != "" {
-		db, err = databases.NewPostgresqlDatabase(cfg)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer db.Close()
-	} else if cfg.FileStoragePath != "" {
-		db, err = databases.NewFileDatabase(cfg.FileStoragePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer db.Close()
-	} else {
-		db = databases.NewMapDatabase()
-		defer db.Close()
-	}
+	db := databases.NewMapDatabase()
+	//db, err = databases.NewFileDatabase(cfg.FileStoragePath)
+	//db, err := databases.NewPostgresqlDatabase(cfg)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	defer db.Close()
 
 	type want struct {
 		status   int
