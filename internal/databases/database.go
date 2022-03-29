@@ -26,10 +26,9 @@ type Database interface {
 }
 
 type URL struct {
-	Hash      string `json:"hash"`
-	Original  string `json:"original"`
-	UserID    string `json:"user_id"`
-	IsDeleted bool   `json:"is_deleted"`
+	Hash     string `json:"hash"`
+	Original string `json:"original"`
+	UserID   string `json:"user_id"`
 }
 
 type InputURL struct {
@@ -54,9 +53,6 @@ func hasKey(key string, db []URL) bool {
 func getOriginal(key string, db []URL) (string, error) {
 	for _, row := range db {
 		if row.Hash == key {
-			if row.IsDeleted {
-				return "", ErrGone
-			}
 			return row.Original, nil
 		}
 	}
@@ -114,13 +110,7 @@ func (m *MapDatabase) SelectAll(userID string) ([]URL, error) {
 	return data, nil
 }
 
-func (m *MapDatabase) Delete(key, userID string) {
-	for _, item := range m.db {
-		if item.Hash == key && item.UserID == userID {
-			item.IsDeleted = true
-		}
-	}
-}
+func (m *MapDatabase) Delete(key, userID string) {}
 
 type FileDatabase struct {
 	path string
