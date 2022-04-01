@@ -22,7 +22,7 @@ type Database interface {
 	Ping() error
 	CreateMany(URL) error
 	Flush() error
-	Delete(string, string)
+	Delete(string, string) error
 }
 
 type URL struct {
@@ -110,7 +110,9 @@ func (m *MapDatabase) SelectAll(userID string) ([]URL, error) {
 	return data, nil
 }
 
-func (m *MapDatabase) Delete(key, userID string) {}
+func (m *MapDatabase) Delete(key, userID string) error {
+	return nil
+}
 
 type FileDatabase struct {
 	path string
@@ -211,7 +213,9 @@ func (f *FileDatabase) SelectAll(userID string) ([]URL, error) {
 	return data, nil
 }
 
-func (f *FileDatabase) Delete(key, userID string) {}
+func (f *FileDatabase) Delete(key, userID string) error {
+	return nil
+}
 
 type PostgresqlDatabase struct {
 	conn   *pgxpool.Pool
@@ -336,7 +340,11 @@ func (p *PostgresqlDatabase) SelectAll(userID string) ([]URL, error) {
 	return data, nil
 }
 
-func (p *PostgresqlDatabase) Delete(key, userID string) {
-	rows, _ := p.conn.Query(context.Background(), delete, key, userID)
+func (p *PostgresqlDatabase) Delete(key, userID string) error {
+	rows, err := p.conn.Query(context.Background(), delete, key, userID)
+	if err != nil {
+		return err
+	}
 	defer rows.Close()
+	return nil
 }

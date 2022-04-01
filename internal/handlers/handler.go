@@ -255,6 +255,11 @@ func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database
 	}
 }
 
+type deleteItem struct {
+	Key    string
+	UserID string
+}
+
 func Delete(db databases.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var keys []string
@@ -270,18 +275,99 @@ func Delete(db databases.Database) http.HandlerFunc {
 			return
 		}
 
-		wg := &sync.WaitGroup{}
+		inputCh := make(chan deleteItem)
+		workersCount := 10
 
-		for _, key := range keys {
-			wg.Add(1)
-			go func(inputKey string) {
-				defer wg.Done()
-				db.Delete(inputKey, cookie.Value)
-			}(key)
+		go func() {
+			for _, key := range keys {
+				inputCh <- deleteItem{Key: key, UserID: cookie.Value}
+			}
+			close(inputCh)
+		}()
+
+		fanOutChs := fanOut(inputCh, workersCount)
+		workerChs := make([]chan error, 0, workersCount)
+		for _, fanOutCh := range fanOutChs {
+			w := newWorker(db, fanOutCh)
+			workerChs = append(workerChs, w)
 		}
 
-		wg.Wait()
+		// здесь fanIn
+		for v := range fanIn(workerChs...) {
+			log.Println(v)
+		}
 
 		w.WriteHeader(http.StatusAccepted)
 	}
+}
+
+func fanOut(inputCh chan deleteItem, n int) []chan deleteItem {
+	chs := make([]chan deleteItem, 0, n)
+	for i := 0; i < n; i++ {
+		ch := make(chan deleteItem)
+		chs = append(chs, ch)
+	}
+
+	go func() {
+		defer func(chs []chan deleteItem) {
+			for _, ch := range chs {
+				close(ch)
+			}
+		}(chs)
+
+		for i := 0; ; i++ {
+			if i == len(chs) {
+				i = 0
+			}
+
+			item, ok := <-inputCh
+			if !ok {
+				return
+			}
+
+			ch := chs[i]
+			ch <- item
+		}
+	}()
+
+	return chs
+}
+
+func newWorker(db databases.Database, inputCh <-chan deleteItem) chan error {
+	outCh := make(chan error)
+
+	go func() {
+		for item := range inputCh {
+			err := db.Delete(item.Key, item.UserID)
+			outCh <- err
+		}
+
+		close(outCh)
+	}()
+
+	return outCh
+}
+
+func fanIn(inputChs ...chan error) (chan error) {
+	outCh := make(chan error)
+
+	go func() {
+		wg := &sync.WaitGroup{}
+
+		for _, inputCh := range inputChs {
+			wg.Add(1)
+
+			go func(inputCh chan error) {
+				defer wg.Done()
+				for item := range inputCh {
+					outCh <- item
+				}
+			}(inputCh)
+		}
+
+		wg.Wait()
+		close(outCh)
+	}()
+
+	return outCh
 }
