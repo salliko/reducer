@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 )
 
 func InsertURL(URL []byte, hashURL datahashes.Hasing, db databases.Database, cfg config.Config, userID string) (string, error) {
@@ -70,6 +71,10 @@ func RedirectFromShortToFull(db databases.Database) http.HandlerFunc {
 
 		val, err := db.Select(id)
 		if err != nil {
+			if errors.Is(err, databases.ErrGone) {
+				http.Error(w, err.Error(), http.StatusGone)
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Not found"))
 			return
@@ -248,4 +253,121 @@ func GenerateManyShortenJSONURL(hashURL datahashes.Hasing, db databases.Database
 
 		w.Write(data)
 	}
+}
+
+type deleteItem struct {
+	Key    string
+	UserID string
+}
+
+func Delete(db databases.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var keys []string
+
+		if err := json.NewDecoder(r.Body).Decode(&keys); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		cookie, err := r.Cookie("user_id")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		inputCh := make(chan deleteItem)
+		workersCount := 10
+
+		go func() {
+			for _, key := range keys {
+				inputCh <- deleteItem{Key: key, UserID: cookie.Value}
+			}
+			close(inputCh)
+		}()
+
+		fanOutChs := fanOut(inputCh, workersCount)
+		workerChs := make([]chan error, 0, workersCount)
+		for _, fanOutCh := range fanOutChs {
+			w := newWorker(db, fanOutCh)
+			workerChs = append(workerChs, w)
+		}
+
+		// здесь fanIn
+		for v := range fanIn(workerChs...) {
+			log.Println(v)
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+func fanOut(inputCh chan deleteItem, n int) []chan deleteItem {
+	chs := make([]chan deleteItem, 0, n)
+	for i := 0; i < n; i++ {
+		ch := make(chan deleteItem)
+		chs = append(chs, ch)
+	}
+
+	go func() {
+		defer func(chs []chan deleteItem) {
+			for _, ch := range chs {
+				close(ch)
+			}
+		}(chs)
+
+		for i := 0; ; i++ {
+			if i == len(chs) {
+				i = 0
+			}
+
+			item, ok := <-inputCh
+			if !ok {
+				return
+			}
+
+			ch := chs[i]
+			ch <- item
+		}
+	}()
+
+	return chs
+}
+
+func newWorker(db databases.Database, inputCh <-chan deleteItem) chan error {
+	outCh := make(chan error)
+
+	go func() {
+		for item := range inputCh {
+			err := db.Delete(item.Key, item.UserID)
+			outCh <- err
+		}
+
+		close(outCh)
+	}()
+
+	return outCh
+}
+
+func fanIn(inputChs ...chan error) (chan error) {
+	outCh := make(chan error)
+
+	go func() {
+		wg := &sync.WaitGroup{}
+
+		for _, inputCh := range inputChs {
+			wg.Add(1)
+
+			go func(inputCh chan error) {
+				defer wg.Done()
+				for item := range inputCh {
+					outCh <- item
+				}
+			}(inputCh)
+		}
+
+		wg.Wait()
+		close(outCh)
+	}()
+
+	return outCh
 }

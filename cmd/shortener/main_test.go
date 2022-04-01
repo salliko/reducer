@@ -18,6 +18,13 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 	req, err := http.NewRequest(method, ts.URL+path, body)
 	require.NoError(t, err)
 
+	cookie := &http.Cookie{
+		Name:     "user_id",
+		Value:    "aZT57qJnkvCrMQ==",
+		HttpOnly: false,
+	}
+	req.AddCookie(cookie)
+
 	client := &http.Client{}
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -148,10 +155,28 @@ func TestRouter(t *testing.T) {
 				status: http.StatusOK,
 			},
 		},
+		//{
+		//	name:   "#10 DELETE",
+		//	method: http.MethodDelete,
+		//	path:   "/api/user/urls",
+		//	url:    `["3617bf", "419929", "6c5b1c"]`,
+		//	want: want{
+		//		status: http.StatusAccepted,
+		//	},
+		//},
+		//{
+		//	name:   "#11 Gone",
+		//	method: http.MethodGet,
+		//	path:   fmt.Sprintf("/%s", "3617bf"),
+		//	want: want{
+		//		status: http.StatusGone,
+		//	},
+		//},
 	}
 
 	r := NewRouter(cfg, db)
 	ts := httptest.NewServer(r)
+
 	defer ts.Close()
 
 	for _, tt := range tests {

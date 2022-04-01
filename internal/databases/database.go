@@ -12,6 +12,7 @@ import (
 )
 
 var ErrConflict = errors.New(`conflict`)
+var ErrGone = errors.New(`Gone`)
 
 type Database interface {
 	Create(key, value, userID string) error
@@ -21,6 +22,7 @@ type Database interface {
 	Ping() error
 	CreateMany(URL) error
 	Flush() error
+	Delete(string, string) error
 }
 
 type URL struct {
@@ -106,6 +108,10 @@ func (m *MapDatabase) SelectAll(userID string) ([]URL, error) {
 		}
 	}
 	return data, nil
+}
+
+func (m *MapDatabase) Delete(key, userID string) error {
+	return nil
 }
 
 type FileDatabase struct {
@@ -207,6 +213,10 @@ func (f *FileDatabase) SelectAll(userID string) ([]URL, error) {
 	return data, nil
 }
 
+func (f *FileDatabase) Delete(key, userID string) error {
+	return nil
+}
+
 type PostgresqlDatabase struct {
 	conn   *pgxpool.Pool
 	buffer []URL
@@ -301,9 +311,13 @@ func (p *PostgresqlDatabase) Flush() error {
 
 func (p *PostgresqlDatabase) Select(key string) (string, error) {
 	var original string
-	err := p.conn.QueryRow(context.Background(), selectOriginal, key).Scan(&original)
+	var isDeleted bool
+	err := p.conn.QueryRow(context.Background(), selectOriginal, key).Scan(&original, &isDeleted)
 	if err != nil {
 		return "", err
+	}
+	if isDeleted {
+		return "", ErrGone
 	}
 	return original, nil
 }
@@ -324,4 +338,13 @@ func (p *PostgresqlDatabase) SelectAll(userID string) ([]URL, error) {
 		data = append(data, u)
 	}
 	return data, nil
+}
+
+func (p *PostgresqlDatabase) Delete(key, userID string) error {
+	rows, err := p.conn.Query(context.Background(), delete, key, userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	return nil
 }
